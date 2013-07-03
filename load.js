@@ -1,5 +1,5 @@
 var System, Loader;
-(function (global, XMLHttpRequest, globalEval) {
+(function (global/*, XMLHttpRequest, globalEval*/) {
 
 	var getShim, doc, scriptMatchRx, path;
 
@@ -20,6 +20,7 @@ var System, Loader;
 	// stub ES6 Loader
 	function _Loader (options) {
 		this.global = options.global;
+		this.strict = options.strict;
 		// TODO: process other options
 	}
 
@@ -27,13 +28,6 @@ var System, Loader;
 
 		global: global,
 		strict: true,
-
-//		normalize: failNotReady,
-//		resolve: failNotReady,
-//		fetch: failNotReady,
-//		translate: failNotReady,
-//		link: failNotReady,
-//		defineBuiltins: failNotReady,
 
 		"eval": function (source) {
 			return globalEval(source, this.global);
@@ -103,23 +97,15 @@ var System, Loader;
 		// register this callback as a waiter
 		waitForShim(callback);
 		// fetch the shim
-		loadScript(
-			// TODO: figure out url
-			{ url: url },
-			function success () {
-				// at this point, the Loader shim should be defined
+		simpleAmd(
+			'Loader',
+			function success (Loader) {
 				shim = Loader.prototype;
 				// rewrite getShim
 				getShim = callShimNow;
 				callShimWaiters();
-			},
-			function fail (ex) {
-				ex = ex || new Error('Could not load:');
-				ex.message += ' ' + url;
-				throw ex;
 			}
 		);
-
 	}
 
 	function waitForShim (callback) {
@@ -161,18 +147,94 @@ var System, Loader;
 		throw new Error('Cannot access loader before it is fully loaded.');
 	}
 
-	function isFunction (it) { return typeof it == 'function'; }
+//	function isFunction (it) { return typeof it == 'function'; }
+
+	function joinPath (p1, p2) {
+		return p1 + (p1.substr(p1.length - 1) == '/' ? '' : '/') + p2;
+	}
 
 	function noop () {}
+
+	/***** simple, temporary AMD for loading local modules *****/
+
+	var defines;
+
+	defines = {};
+
+	global.define = function define (factory) {
+		var ex, id;
+		if ('*' in defines) {
+			ex = new Error('Duplicate anonymous define() encountered');
+		}
+		id = getCurrentModuleId() || '*';
+		defines[id] = new Mctx(factory, ex);
+	};
+
+	function simpleAmd (id, callback, errback) {
+		var url;
+		if (defines[id] ) {
+			callback(runFactory(id));
+		}
+		url = joinPath(path, id);
+		loadScript(
+			{ id: id, url: url },
+			function success () {
+				var key, found, mctx;
+				key = '*' in defines ? '*' : id;
+				found = key in defines;
+				mctx = defines[key];
+				delete defines['*'];
+				if (!found) {
+					fail(new Error('define() missing or syntax error'));
+				}
+				else if ('ex' in mctx) {
+					fail(mctx.ex);
+				}
+				callback(runFactory(id));
+			},
+			fail
+		);
+		function fail (ex) {
+			ex = ex || new Error('Could not load');
+			ex.message += ' ' + url;
+			if (errback) errback(ex); else throw ex;
+		}
+	}
+
+	function runFactory (id) {
+		var mctx;
+		mctx = defines[id];
+		return mctx instanceof Mctx ? defines[id] = mctx.factory() : mctx;
+	}
+
+	function Mctx (factory, ex) {
+		this.factory = factory;
+		this.ex = ex;
+	}
+
+	function getCurrentModuleId () {
+		// IE6-9 mark the currently executing thread as "interactive"
+		// Note: Opera lies about which scripts are "interactive", so we
+		// just have to test for it. Opera provides a true browser test, not
+		// a UA sniff, thankfully.
+		if (!typeof global['opera'] == 'Opera') {
+			// learned this technique from James Burke's RequireJS
+			for (var id in activeScripts) {
+				if (activeScripts[id].readyState == 'interactive') {
+					return id;
+				}
+			}
+		}
+	}
 
 	/***** script loader *****/
 
 	var loadScript, activeScripts, readyStates, head, insertBeforeEl;
 
 	// ringojs
-	if (typeof load == 'function') loadScript = asyncifyLoad(load);
+	if (typeof load == 'function') loadScript = callbackLoad(load);
 	// other commonjs
-	else if (typeof require == 'function') loadScript = asyncifyLoad(require);
+	else if (typeof require == 'function') loadScript = callbackLoad(require);
 	// browser
 	else if (doc) {
 		activeScripts = [];
@@ -234,52 +296,52 @@ var System, Loader;
 	// fail
 	else loadScript = function () { throw new Error('Can\'t load scripts!'); };
 
-	function asyncifyLoad (loadFunc) {
+	function callbackLoad (loadFunc) {
 		return function (options, cb, eb) {
-			nextTurn(function () {
+//			nextTurn(function () {
 				try { cb(loadFunc(options.url)); } catch (ex) { eb(ex); }
-			});
+//			});
 		};
 	}
 
-	/***** shims *****/
-
-	var nextTurn;
-
-	// shim XHR, if necessary (IE6). TODO: node/ringo solution?
-	if (!XMLHttpRequest) {
-		XMLHttpRequest = function () {
-			var progIds;
-			progIds = ['Msxml2.XMLHTTP', 'Microsoft.XMLHTTP', 'Msxml2.XMLHTTP.4.0'];
-			// keep trying progIds until we find the correct one,
-			while (progIds.length && !XMLHttpRequest) {
-				XMLHttpRequest = tryProgId(progIds.shift());
-			}
-			if (!XMLHttpRequest) throw new Error('XMLHttpRequest not available');
-			return XMLHttpRequest();
-			function tryProgId (progId) {
-				try {
-					new ActiveXObject(progId);
-					return function () { return new ActiveXObject(progId); };
-				}
-				catch (ex) {}
-			}
-		};
-	}
-
-	// Use process.nextTick or setImmediate if available, fallback to setTimeout
-	nextTurn = function () {
-		nextTurn = isFunction(global.setImmediate)
-			? global.setImmediate.bind(global)
-			: typeof process === 'object'
-				? process.nextTick
-				: function (task) { setTimeout(task, 0); };
-		return nextTurn.apply(this, arguments);
-	};
+//	/***** shims *****/
+//
+//	var nextTurn;
+//
+//	// shim XHR, if necessary (IE6). TODO: node/ringo solution?
+//	if (!XMLHttpRequest) {
+//		XMLHttpRequest = function () {
+//			var progIds;
+//			progIds = ['Msxml2.XMLHTTP', 'Microsoft.XMLHTTP', 'Msxml2.XMLHTTP.4.0'];
+//			// keep trying progIds until we find the correct one,
+//			while (progIds.length && !XMLHttpRequest) {
+//				XMLHttpRequest = tryProgId(progIds.shift());
+//			}
+//			if (!XMLHttpRequest) throw new Error('XMLHttpRequest not available');
+//			return XMLHttpRequest();
+//			function tryProgId (progId) {
+//				try {
+//					new ActiveXObject(progId);
+//					return function () { return new ActiveXObject(progId); };
+//				}
+//				catch (ex) {}
+//			}
+//		};
+//	}
+//
+//	// Use process.nextTick or setImmediate if available, fallback to setTimeout
+//	nextTurn = function () {
+//		nextTurn = isFunction(global.setImmediate)
+//			? global.setImmediate.bind(global)
+//			: typeof process === 'object'
+//				? process.nextTick
+//				: function (task) { setTimeout(task, 0); };
+//		return nextTurn.apply(this, arguments);
+//	};
 
 
 }(
-	typeof global == 'object' ? global : this.window || this.global || {},
+	typeof global == 'object' ? global : this.window || this.global || {}/*,
 	typeof XMLHttpRequest != 'undefined' && XMLHttpRequest,
-	function () { return (1, eval).call(arguments[1], arguments[0]); }
+	function () { return (1, eval).call(arguments[1], arguments[0]); }*/
 ));
