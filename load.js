@@ -10,7 +10,7 @@ var System, Loader;
 	 * @param options
 	 * @private
 	 */
-	function _Loader (options) {
+	function _Loader (parent, options) {
 		if (!options) options = {};
 		this.global = options.global;
 		this.strict = options.strict;
@@ -115,8 +115,40 @@ var System, Loader;
 		};
 	}
 
+	/**
+	 * Fetches the Loader shim module and its dependencies.  Then it injects
+	 * the dependencies into the shim module's init function to create
+	 * the Loader shim.
+	 * @private
+	 * @param {Function} callback
+	 */
 	function fetchShim (callback) {
-		simpleAmd('lib/Loader', callback);
+		var ids, modules, count, id, Loader;
+
+		ids = [
+			'Deferred',
+			'shim/XMLHttpRequest'
+		];
+		modules = {};
+		count = ids.length;
+
+		System._require('./lib/Loader', after(createLoader, countdown));
+		while (id = ids.shift()) {
+			System._require(
+				'./lib/' + id,
+				after(createSaverForModule(id), countdown)
+			);
+		}
+
+		function createLoader (init) {
+			Loader = init(modules);
+		}
+		function createSaverForModule (id) {
+			return function (module) { modules[id] = module; };
+		}
+		function countdown () {
+			if (count-- == 0) callback(Loader);
+		}
 	}
 
 	function waitForShim (callback) {
@@ -166,9 +198,9 @@ var System, Loader;
 	 * Simple AMD fetcher.
 	 * @param {String} id
 	 * @param {Function} callback
-	 * @param {Function} errback
+	 * @param {Function} [errback]
 	 */
-	function simpleAmd (id, callback, errback) {
+	System._require = function simpleAmd (id, callback, errback) {
 		var url;
 		if (id in definedModules ) {
 			callback(definedModules[id] = runFactory(definedModules[id]));
@@ -197,7 +229,7 @@ var System, Loader;
 			ex.message += ' ' + url;
 			if (errback) errback(ex); else throw ex;
 		}
-	}
+	};
 
 	function runFactory (mctx) {
 		return mctx instanceof Mctx ? mctx.factory() : mctx;
