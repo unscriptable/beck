@@ -13,6 +13,12 @@ var System, Loader;
 		System = new Loader();
 	}
 
+	/**
+	 * Stub ES6 Loader.  Serves as a temporary loader until a shim is in place.
+	 * @constructor
+	 * @param options
+	 * @private
+	 */
 	function _Loader (options) {
 		this.global = options.global;
 		this.strict = options.strict;
@@ -36,7 +42,7 @@ var System, Loader;
 
 	};
 
-	/***** stuff to load an ES6 Loader shim *****/
+	/***** stuff to load a real ES6 Loader shim *****/
 
 	var getShim, saveShimImpl, shim;
 
@@ -108,11 +114,6 @@ var System, Loader;
 		};
 	}
 
-	/**
-	 * Fetches the ES6 Loader shim and calls a callback when done.
-	 * @private
-	 * @param callback
-	 */
 	function fetchShim (callback) {
 		simpleAmd('lib/Loader', callback);
 	}
@@ -140,22 +141,33 @@ var System, Loader;
 
 	/***** simple, temporary AMD for loading local modules *****/
 
-	var defines;
+	var definedModules;
 
-	defines = {};
+	definedModules = {};
 
-	global.define = function define (factory) {
+	/**
+	 * Global define function on System object.  Simplified AMD.
+	 * @function
+	 * @param {Function} factory
+	 */
+	System._define = function define (factory) {
 		var ex, id;
-		if ('*' in defines) {
+		if ('*' in definedModules) {
 			ex = new Error('Duplicate anonymous define() encountered');
 		}
 		id = getDefinedModuleId() || '*';
-		defines[id] = new Mctx(factory, ex);
+		definedModules[id] = new Mctx(factory, ex);
 	};
 
+	/**
+	 * Simple AMD fetcher.
+	 * @param {String} id
+	 * @param {Function} callback
+	 * @param {Function} errback
+	 */
 	function simpleAmd (id, callback, errback) {
 		var url;
-		if (defines[id] ) {
+		if (definedModules[id] ) {
 			callback(runFactory(id));
 		}
 		url = joinPath(baseUrl, id);
@@ -163,10 +175,10 @@ var System, Loader;
 			{ id: id, url: url },
 			function success () {
 				var key, found, mctx;
-				key = '*' in defines ? '*' : id;
-				found = key in defines;
-				mctx = defines[key];
-				delete defines['*'];
+				key = '*' in definedModules ? '*' : id;
+				found = key in definedModules;
+				mctx = definedModules[key];
+				delete definedModules['*'];
 				if (!found) {
 					fail(new Error('define() missing or syntax error'));
 				}
@@ -186,10 +198,18 @@ var System, Loader;
 
 	function runFactory (id) {
 		var mctx;
-		mctx = defines[id];
-		return mctx instanceof Mctx ? defines[id] = mctx.factory() : mctx;
+		mctx = definedModules[id];
+		return mctx instanceof Mctx ? definedModules[id] = mctx.factory() : mctx;
 	}
 
+	/**
+	 * Constructs a module definition context. Allows us to use `instanceof`
+	 * to positively identify a module that hasn't had its factory run, yet.
+	 * @private
+	 * @param factory
+	 * @param ex
+	 * @constructor
+	 */
 	function Mctx (factory, ex) {
 		this.factory = factory;
 		this.ex = ex;
@@ -243,28 +263,16 @@ var System, Loader;
 		insertBeforeEl = head && head.getElementsByTagName('base')[0] || null;
 		return function (options, cb, eb) {
 			var el;
-			// many script processing rules learned from RequireJS and LABjs
-
 			el = doc.createElement('script');
-
-			// js! plugin uses alternate mimetypes and such
-			el.type = options.mimetype || 'text/javascript';
-			el.charset = options.charset || 'utf-8';
-			el.async = !options.order;
+			el.async = true;
 			el.src = joinPath(baseUrl, options.url);
-
-			// using dom0 event handlers instead of wordy w3c/ms
 			el.onload = el.onreadystatechange = process;
 			el.onerror = fail;
-
 			// loading will start when the script is inserted into the dom.
 			// IE will load the script sync if it's in the cache, so
 			// indicate the current resource definition first.
 			activeScripts[options.id] = el;
-
-			head.insertBefore(el, insertBeforeEl);
-
-			return el;
+			return head.insertBefore(el, insertBeforeEl);
 
 			// initial script processing
 			function process (ev) {
@@ -275,15 +283,12 @@ var System, Loader;
 				// el.readyState in {loaded, complete} (yes, we need both)
 				if (ev.type == 'load' || readyStates[el.readyState]) {
 					delete activeScripts[options.id];
-					// release event listeners
-					el.onload = el.onreadystatechange = el.onerror = ''; // ie cries if we use undefined
+					el.onload = el.onreadystatechange = el.onerror = '';
 					cb();
 				}
 			}
 
-			function fail (e) {
-				// some browsers send an event, others send a string, but none
-				// of them send anything informative, so just say we failed:
+			function fail () {
 				eb(new Error('Syntax or http error: ' + options.url));
 			}
 		};
@@ -362,16 +367,6 @@ var System, Loader;
 //			}
 //		};
 //	}
-//
-//	// Use process.nextTick or setImmediate if available, fallback to setTimeout
-//	nextTurn = function () {
-//		nextTurn = isFunction(global.setImmediate)
-//			? global.setImmediate.bind(global)
-//			: typeof process === 'object'
-//				? process.nextTick
-//				: function (task) { setTimeout(task, 0); };
-//		return nextTurn.apply(this, arguments);
-//	};
 
 
 	/***** other stuff *****/
