@@ -4,15 +4,6 @@ var System, Loader;
 
 	/***** stub ES6 Loader *****/
 
-	// sniff System and Loader
-	if (typeof Loader == 'undefined') {
-		Loader = _Loader;
-	}
-
-	if (typeof System == 'undefined') {
-		System = new Loader();
-	}
-
 	/**
 	 * Stub ES6 Loader.  Serves as a temporary loader until a shim is in place.
 	 * @constructor
@@ -20,6 +11,7 @@ var System, Loader;
 	 * @private
 	 */
 	function _Loader (options) {
+		if (!options) options = {};
 		this.global = options.global;
 		this.strict = options.strict;
 		// TODO: process other options
@@ -41,6 +33,15 @@ var System, Loader;
 		"delete": shimCallerSync('delete')
 
 	};
+
+	// sniff System and Loader
+	if (typeof Loader == 'undefined') {
+		Loader = _Loader;
+	}
+
+	if (typeof System == 'undefined') {
+		System = new Loader();
+	}
 
 	/***** stuff to load a real ES6 Loader shim *****/
 
@@ -66,16 +67,16 @@ var System, Loader;
 
 	/**
 	 * Saves the shim implementation.  Uses after advice to modify the getShim
-	 * function to stop queueing callbacks and call them immediately, instead.
+	 * function to stop queueing callbacks and calls them immediately, instead.
 	 * All callbacks are called at this point.
 	 * @function
 	 */
 	saveShimImpl = after(
 		saveShimProto,
-		function () {
+		function (impl) {
 			// rewrite getShim
 			getShim = callShimNow;
-			callShimWaiters();
+			callShimWaiters(impl);
 		}
 	);
 
@@ -122,14 +123,14 @@ var System, Loader;
 		shim.waiters.push(callback);
 	}
 
-	function callShimWaiters () {
+	function callShimWaiters (impl) {
 		var waiter;
-		while (waiter = shim.waiters.unshift()) waiter();
+		while (waiter = shim.waiters.shift()) waiter(impl);
 	}
 
 	function saveShimProto (impl) {
 		// save the shim's prototype to get at the methods.
-		shim.impl = impl.prototype;
+		return shim.impl = impl.prototype;
 	}
 
 	function callShimNow (cb) { cb(shim.impl); }
@@ -167,10 +168,10 @@ var System, Loader;
 	 */
 	function simpleAmd (id, callback, errback) {
 		var url;
-		if (definedModules[id] ) {
-			callback(runFactory(id));
+		if (id in definedModules ) {
+			callback(definedModules[id] = runFactory(definedModules[id]));
 		}
-		url = joinPath(baseUrl, id);
+		url = addBaseUrl(baseUrl, ensureExt(id));
 		loadScript(
 			{ id: id, url: url },
 			function success () {
@@ -182,10 +183,10 @@ var System, Loader;
 				if (!found) {
 					fail(new Error('define() missing or syntax error'));
 				}
-				else if ('ex' in mctx) {
+				else if (mctx.ex) {
 					fail(mctx.ex);
 				}
-				callback(runFactory(id));
+				callback(definedModules[id] = runFactory(mctx));
 			},
 			fail
 		);
@@ -196,10 +197,8 @@ var System, Loader;
 		}
 	}
 
-	function runFactory (id) {
-		var mctx;
-		mctx = definedModules[id];
-		return mctx instanceof Mctx ? definedModules[id] = mctx.factory() : mctx;
+	function runFactory (mctx) {
+		return mctx instanceof Mctx ? mctx.factory() : mctx;
 	}
 
 	/**
@@ -212,7 +211,7 @@ var System, Loader;
 	 */
 	function Mctx (factory, ex) {
 		this.factory = factory;
-		this.ex = ex;
+		if (ex) this.ex = ex;
 	}
 
 
@@ -265,7 +264,7 @@ var System, Loader;
 			var el;
 			el = doc.createElement('script');
 			el.async = true;
-			el.src = joinPath(baseUrl, options.url);
+			el.src = options.url;
 			el.onload = el.onreadystatechange = process;
 			el.onerror = fail;
 			// loading will start when the script is inserted into the dom.
@@ -289,13 +288,14 @@ var System, Loader;
 			}
 
 			function fail () {
-				eb(new Error('Syntax or http error: ' + options.url));
+				eb(new Error('Syntax or http error.'));
 			}
 		};
 	}
 
 	function findScriptPath () {
-		var scriptMatchRx, scripts, current, script, path;
+		var scriptDataAttr, scriptMatchRx, scripts, current, script, path;
+		scriptDataAttr = 'data-beck-load';
 		scriptMatchRx = /beck.*js/;
 		current = doc.currentScript;
 		if (!current) {
@@ -303,6 +303,7 @@ var System, Loader;
 			scripts.push.apply(scripts, doc.scripts || doc.getElementsByTagName('script'));
 			while (!current && (script = scripts.pop())) {
 				if (script.readyState == 'interactive') current = script;
+				else if (script.hasAttribute(scriptDataAttr)) current = script;
 				else if (scriptMatchRx.test(script.src)) current = script;
 			}
 		}
@@ -371,6 +372,8 @@ var System, Loader;
 
 	/***** other stuff *****/
 
+	var absUrlRx = /^\/|^[^:]+:\/\//;
+
 //	function isFunction (it) { return typeof it == 'function'; }
 
 	function stripFilePart (path) {
@@ -381,10 +384,17 @@ var System, Loader;
 		return p1 + (p1.substr(p1.length - 1) == '/' ? '' : '/') + p2;
 	}
 
+	function ensureExt (path) {
+		return path.indexOf('.js') == path.length - 3 ? path : path + '.js';
+	}
+
+	function addBaseUrl (baseUrl, path) {
+
+		return absUrlRx.test(path) ? path : joinPath(baseUrl, path);
+	}
+
 	function noop () {}
 
 }(
-	typeof global == 'object' ? global : this.window || this.global || {}/*,
-	typeof XMLHttpRequest != 'undefined' && XMLHttpRequest,
-	function () { return (1, eval).call(arguments[1], arguments[0]); }*/
+	typeof global == 'object' ? global : this.window || this.global || {}
 ));
