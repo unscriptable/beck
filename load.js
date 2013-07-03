@@ -147,7 +147,9 @@ var System, Loader;
 	definedModules = {};
 
 	/**
-	 * Global define function on System object.  Simplified AMD.
+	 * Global define function on System object.  This is a simplified AMD-like
+	 * module wrapper to allow us to load some initial modules before a
+	 * fully-functional module loader is in place.
 	 * @function
 	 * @param {Function} factory
 	 */
@@ -244,10 +246,8 @@ var System, Loader;
 
 	function createCallbackLoader (loadFunc) {
 		return function (options, cb, eb) {
-//			nextTurn(function () {
-				var url = joinPath(baseUrl, options.url);
-				try { cb(loadFunc(url)); } catch (ex) { eb(ex); }
-//			});
+			var url = joinPath(baseUrl, options.url);
+			try { cb(loadFunc(url)); } catch (ex) { eb(ex); }
 		};
 	}
 
@@ -344,37 +344,9 @@ var System, Loader;
 		}
 	}
 
-//	/***** shims *****/
-//
-//	var nextTurn;
-//
-//	// shim XHR, if necessary (IE6). TODO: node/ringo solution?
-//	if (!XMLHttpRequest) {
-//		XMLHttpRequest = function () {
-//			var progIds;
-//			progIds = ['Msxml2.XMLHTTP', 'Microsoft.XMLHTTP', 'Msxml2.XMLHTTP.4.0'];
-//			// keep trying progIds until we find the correct one,
-//			while (progIds.length && !XMLHttpRequest) {
-//				XMLHttpRequest = tryProgId(progIds.shift());
-//			}
-//			if (!XMLHttpRequest) throw new Error('XMLHttpRequest not available');
-//			return XMLHttpRequest();
-//			function tryProgId (progId) {
-//				try {
-//					new ActiveXObject(progId);
-//					return function () { return new ActiveXObject(progId); };
-//				}
-//				catch (ex) {}
-//			}
-//		};
-//	}
-
-
 	/***** other stuff *****/
 
 	var absUrlRx = /^\/|^[^:]+:\/\//;
-
-//	function isFunction (it) { return typeof it == 'function'; }
 
 	function stripFilePart (path) {
 		return path && path.slice(0, path.lastIndexOf('/') + 1);
@@ -389,7 +361,6 @@ var System, Loader;
 	}
 
 	function addBaseUrl (baseUrl, path) {
-
 		return absUrlRx.test(path) ? path : joinPath(baseUrl, path);
 	}
 
