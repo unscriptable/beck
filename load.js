@@ -43,52 +43,37 @@ var System, Loader;
 			}
 		},
 
-		has: function (id) {
-			var shim;
-			shim = getShimSync();
-			if (!shim) return false;
-			else return shim.has(id);
-		},
-
-
 		load: shimCallerAsync('load'),
 		"import": shimCallerAsync('import'),
 
 		// TODO: these need to defer to the shim when it is ready
 		get: shimCallerSync('get'),
+		has: shimCallerSync('has'),
 		set: shimCallerSync('set'),
 		"delete": shimCallerSync('delete')
 
 	};
 
-	var shim, shimWaiters;
+	var shim;
 
-	shimWaiters = [];
-
-	function callShimAsync (loader, funcName, params) {
-		getShim(function (shim) {
-			shim[funcName].apply(loader, params);
-		});
-	}
+	shim = {
+		impl: null,
+		waiters: []
+	};
 
 	function shimCallerAsync (funcName) {
-		return function () {
-			getShim(function (shim) {
-				shim[funcName].apply(this, arguments);
+		return function callShimAsync () {
+			getShim(function (impl) {
+				impl[funcName].apply(this, arguments);
 			});
 		};
 	}
 
 	function shimCallerSync (funcName) {
 		return function () {
-			var shim = getShimSync();
-			if (!shim) failNotReady();
-			else return shim[funcName].apply(this, arguments);
+			if (!shim.impl) failNotReady();
+			else return shim.impl[funcName].apply(this, arguments);
 		};
-	}
-
-	function getShimSync () {
-		return shim;
 	}
 
 	function fetchShim (callback) {
@@ -100,7 +85,7 @@ var System, Loader;
 		simpleAmd(
 			'Loader',
 			function success (Loader) {
-				shim = Loader.prototype;
+				shim.impl = Loader.prototype;
 				// rewrite getShim
 				getShim = callShimNow;
 				callShimWaiters();
@@ -109,17 +94,17 @@ var System, Loader;
 	}
 
 	function waitForShim (callback) {
-		shimWaiters.push(callback);
+		shim.waiters.push(callback);
 	}
 
 	function callShimWaiters () {
 		var waiter;
-		while (waiter = shimWaiters.unshift()) {
+		while (waiter = shim.waiters.unshift()) {
 			waiter();
 		}
 	}
 
-	function callShimNow (cb) { cb(shim); }
+	function callShimNow (cb) { cb(shim.impl); }
 
 	function findScriptPath () {
 		var scripts, current, script, path;
