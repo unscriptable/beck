@@ -1,12 +1,8 @@
 var System, Loader;
 (function (global/*, XMLHttpRequest, globalEval*/) {
 
-	var getShim, doc, scriptMatchRx, path;
 
-	getShim = fetchShim;
-	doc = global.document;
-	scriptMatchRx = /beck.*js/;
-	path = findScriptPath();
+	/***** stub ES6 Loader *****/
 
 	// sniff System and Loader
 	if (typeof Loader == 'undefined') {
@@ -17,7 +13,6 @@ var System, Loader;
 		System = new Loader();
 	}
 
-	// stub ES6 Loader
 	function _Loader (options) {
 		this.global = options.global;
 		this.strict = options.strict;
@@ -29,24 +24,11 @@ var System, Loader;
 		global: global,
 		strict: true,
 
-		"eval": function (source) {
-			return globalEval(source, this.global);
-		},
-
-		evalAsync: function (source, callback, errback) {
-			if (!callback) callback = noop;
-			try {
-				callback(this.eval(source));
-			}
-			catch (ex) {
-				if (arguments.length > 1) errback(ex); else throw ex;
-			}
-		},
-
+		evalAsync: shimCallerAsync('evalAsync'),
 		load: shimCallerAsync('load'),
 		"import": shimCallerAsync('import'),
 
-		// TODO: these need to defer to the shim when it is ready
+		"eval": shimCallerSync('eval'),
 		get: shimCallerSync('get'),
 		has: shimCallerSync('has'),
 		set: shimCallerSync('set'),
@@ -54,13 +36,56 @@ var System, Loader;
 
 	};
 
-	var shim;
+	/***** stuff to load an ES6 Loader shim *****/
+
+	var getShim, saveShimImpl, shim;
+
+	/**
+	 * Gets the shim and calls back.  Uses before advice to modify the getShim
+	 * function to instruct any further calls to just queue callbacks.
+	 * @function
+	 * @param {Function} cb
+	 */
+	getShim = before(
+		function (cb) {
+			fetchShim(saveShimImpl);
+		},
+		function (cb) {
+			// rewrite getShim
+			getShim = waitForShim;
+			// register the first callback as a waiter
+			waitForShim(cb);
+		}
+	);
+
+	/**
+	 * Saves the shim implementation.  Uses after advice to modify the getShim
+	 * function to stop queueing callbacks and call them immediately, instead.
+	 * All callbacks are called at this point.
+	 * @function
+	 */
+	saveShimImpl = after(
+		saveShimProto,
+		function () {
+			// rewrite getShim
+			getShim = callShimNow;
+			callShimWaiters();
+		}
+	);
 
 	shim = {
 		impl: null,
 		waiters: []
 	};
 
+	/**
+	 * Creates a function that will call the ES6 Loader shim when it becomes
+	 * available and then call back.  This is used to implement async methods
+	 * on the ES6 Loader stub.
+	 * @private
+	 * @param {String} funcName
+	 * @return {Function}
+	 */
 	function shimCallerAsync (funcName) {
 		return function callShimAsync () {
 			getShim(function (impl) {
@@ -69,6 +94,13 @@ var System, Loader;
 		};
 	}
 
+	/**
+	 * Creates a function that will call the ES6 Loader shim sync or fail
+	 * if the shim isn't available, yet.
+	 * @private
+	 * @param {String} funcName
+	 * @return {Function}
+	 */
 	function shimCallerSync (funcName) {
 		return function () {
 			if (!shim.impl) failNotReady();
@@ -76,21 +108,13 @@ var System, Loader;
 		};
 	}
 
+	/**
+	 * Fetches the ES6 Loader shim and calls a callback when done.
+	 * @private
+	 * @param callback
+	 */
 	function fetchShim (callback) {
-		// rewrite getShim
-		getShim = waitForShim;
-		// register this callback as a waiter
-		waitForShim(callback);
-		// fetch the shim
-		simpleAmd(
-			'Loader',
-			function success (Loader) {
-				shim.impl = Loader.prototype;
-				// rewrite getShim
-				getShim = callShimNow;
-				callShimWaiters();
-			}
-		);
+		simpleAmd('lib/Loader', callback);
 	}
 
 	function waitForShim (callback) {
@@ -99,46 +123,20 @@ var System, Loader;
 
 	function callShimWaiters () {
 		var waiter;
-		while (waiter = shim.waiters.unshift()) {
-			waiter();
-		}
+		while (waiter = shim.waiters.unshift()) waiter();
+	}
+
+	function saveShimProto (impl) {
+		// save the shim's prototype to get at the methods.
+		shim.impl = impl.prototype;
 	}
 
 	function callShimNow (cb) { cb(shim.impl); }
-
-	function findScriptPath () {
-		var scripts, current, script, path;
-		if (doc) {
-			// browsers
-			current = doc.currentScript;
-			if (!current) {
-				scripts = [];
-				scripts.push.apply(scripts, doc.scripts || doc.getElementsByTagName('script'));
-				while (!current && (script = scripts.pop())) {
-					if (script.readyState == 'interactive') current = script;
-					else if (scriptMatchRx.test(script.src)) current = script;
-				}
-			}
-			if (current) path = current.src;
-		}
-		else if (typeof module != 'undefined') {
-			// ringo and node
-			path = module.uri;
-		}
-		return path && path.slice(0, path.lastIndexOf('/') + 1);
-	}
 
 	function failNotReady () {
 		throw new Error('Cannot access loader before it is fully loaded.');
 	}
 
-//	function isFunction (it) { return typeof it == 'function'; }
-
-	function joinPath (p1, p2) {
-		return p1 + (p1.substr(p1.length - 1) == '/' ? '' : '/') + p2;
-	}
-
-	function noop () {}
 
 	/***** simple, temporary AMD for loading local modules *****/
 
@@ -151,7 +149,7 @@ var System, Loader;
 		if ('*' in defines) {
 			ex = new Error('Duplicate anonymous define() encountered');
 		}
-		id = getCurrentModuleId() || '*';
+		id = getDefinedModuleId() || '*';
 		defines[id] = new Mctx(factory, ex);
 	};
 
@@ -160,7 +158,7 @@ var System, Loader;
 		if (defines[id] ) {
 			callback(runFactory(id));
 		}
-		url = joinPath(path, id);
+		url = joinPath(baseUrl, id);
 		loadScript(
 			{ id: id, url: url },
 			function success () {
@@ -197,42 +195,55 @@ var System, Loader;
 		this.ex = ex;
 	}
 
-	function getCurrentModuleId () {
-		// IE6-9 mark the currently executing thread as "interactive"
-		// Note: Opera lies about which scripts are "interactive", so we
-		// just have to test for it. Opera provides a true browser test, not
-		// a UA sniff, thankfully.
-		if (!typeof global['opera'] == 'Opera') {
-			// learned this technique from James Burke's RequireJS
-			for (var id in activeScripts) {
-				if (activeScripts[id].readyState == 'interactive') {
-					return id;
-				}
-			}
-		}
-	}
 
 	/***** script loader *****/
 
-	var loadScript, activeScripts, readyStates, head, insertBeforeEl;
+	var doc, loadScript, baseUrl, activeScripts, getDefinedModuleId;
 
-	// ringojs
-	if (typeof load == 'function') loadScript = callbackLoad(load);
-	// other commonjs
-	else if (typeof require == 'function') loadScript = callbackLoad(require);
+	doc = global.document;
+
+	// node, ringojs, etc.
+	if (typeof module != 'undefined' && typeof require == 'function') {
+		baseUrl = stripFilePart(module.uri);
+		loadScript = createCallbackLoader(require);
+		// in node, module.id is bogus, don't try to use it.
+		getDefinedModuleId = noop;
+	}
 	// browser
 	else if (doc) {
-		activeScripts = [];
+		activeScripts = {};
+		baseUrl = stripFilePart(findScriptPath());
+		loadScript = createBrowserScriptLoader(doc);
+		getDefinedModuleId = getCurrentScriptId;
+	}
+	// fail
+	else {
+		loadScript = function () {
+			throw new Error('Can\'t load scripts in this environment.');
+		};
+	}
+
+	function createCallbackLoader (loadFunc) {
+		return function (options, cb, eb) {
+//			nextTurn(function () {
+				var url = joinPath(baseUrl, options.url);
+				try { cb(loadFunc(url)); } catch (ex) { eb(ex); }
+//			});
+		};
+	}
+
+	function createBrowserScriptLoader (doc) {
+		var readyStates, head, insertBeforeEl;
 		readyStates = 'addEventListener' in global
 			? {}
 			: { 'loaded': 1, 'complete': 1 };
 		head = doc && (doc['head'] || doc.getElementsByTagName('head')[0]);
 		// to keep IE from crying, we need to put scripts before any
-		// <base> elements, but after any <meta>.
+		// <base> elements, but after any <meta>. This usually works.
 		insertBeforeEl = head && head.getElementsByTagName('base')[0] || null;
-		loadScript = function (options, cb, eb) {
+		return function (options, cb, eb) {
 			var el;
-			// script processing rules learned from RequireJS
+			// many script processing rules learned from RequireJS and LABjs
 
 			el = doc.createElement('script');
 
@@ -240,7 +251,7 @@ var System, Loader;
 			el.type = options.mimetype || 'text/javascript';
 			el.charset = options.charset || 'utf-8';
 			el.async = !options.order;
-			el.src = options.url;
+			el.src = joinPath(baseUrl, options.url);
 
 			// using dom0 event handlers instead of wordy w3c/ms
 			el.onload = el.onreadystatechange = process;
@@ -253,7 +264,6 @@ var System, Loader;
 
 			head.insertBefore(el, insertBeforeEl);
 
-			// the js! plugin uses this
 			return el;
 
 			// initial script processing
@@ -278,15 +288,54 @@ var System, Loader;
 			}
 		};
 	}
-	// fail
-	else loadScript = function () { throw new Error('Can\'t load scripts!'); };
 
-	function callbackLoad (loadFunc) {
-		return function (options, cb, eb) {
-//			nextTurn(function () {
-				try { cb(loadFunc(options.url)); } catch (ex) { eb(ex); }
-//			});
-		};
+	function findScriptPath () {
+		var scriptMatchRx, scripts, current, script, path;
+		scriptMatchRx = /beck.*js/;
+		current = doc.currentScript;
+		if (!current) {
+			scripts = [];
+			scripts.push.apply(scripts, doc.scripts || doc.getElementsByTagName('script'));
+			while (!current && (script = scripts.pop())) {
+				if (script.readyState == 'interactive') current = script;
+				else if (scriptMatchRx.test(script.src)) current = script;
+			}
+		}
+		if (current) path = current.src;
+		return path;
+	}
+
+	function getCurrentScriptId () {
+		// IE6-9 mark the currently executing thread as "interactive"
+		// Note: Opera lies about which scripts are "interactive", so we
+		// just have to test for it. Opera provides a true browser test, not
+		// a UA sniff, thankfully.
+		if (!typeof global['opera'] == 'Opera') {
+			// learned this technique from James Burke's RequireJS
+			for (var id in activeScripts) {
+				if (activeScripts[id].readyState == 'interactive') {
+					return id;
+				}
+			}
+		}
+	}
+
+
+	/***** AOP *****/
+
+	function before (func, advice) {
+		return function () {
+			advice.apply(null, arguments);
+			return func.apply(this, arguments);
+		}
+	}
+
+	function after (func, advice) {
+		return function () {
+			var result = func.apply(this, arguments);
+			advice(result);
+			return result;
+		}
 	}
 
 //	/***** shims *****/
@@ -324,6 +373,20 @@ var System, Loader;
 //		return nextTurn.apply(this, arguments);
 //	};
 
+
+	/***** other stuff *****/
+
+//	function isFunction (it) { return typeof it == 'function'; }
+
+	function stripFilePart (path) {
+		return path && path.slice(0, path.lastIndexOf('/') + 1);
+	}
+
+	function joinPath (p1, p2) {
+		return p1 + (p1.substr(p1.length - 1) == '/' ? '' : '/') + p2;
+	}
+
+	function noop () {}
 
 }(
 	typeof global == 'object' ? global : this.window || this.global || {}/*,
