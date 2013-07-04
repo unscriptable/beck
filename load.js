@@ -1,39 +1,24 @@
-var System, Loader;
 (function (global/*, XMLHttpRequest, globalEval*/) {
 
+	/***** temporary loader impl *****/
 
-	/***** stub ES6 Loader *****/
+	var namespace, modules, impl;
 
-	var cache;
+	namespace = 'beck';
 
-	cache = {};
+	modules = {};
 
-	/**
-	 * Stub ES6 Loader.  Serves as a temporary loader until a shim is in place.
-	 * @constructor
-	 * @param options
-	 * @param options
-	 * @private
-	 */
-	function _Loader (parent, options) {
-		// save args to create the real shim when it is loaded
-		this._parent = parent;
-		this._options = options;
-	}
-
-	_Loader.prototype = {
+	impl = {
 
 		global: global,
 		strict: true,
 
-		evalAsync: shimCallerAsync('evalAsync'),
-		load: shimCallerAsync('load'),
-		//"import": shimCallerAsync('import'),
-		"import": function (idOrArray, callback, errback) {
-			var self = this;
-			if (typeof idOrArray != 'string' || idOrArray.slice(0, 4) != 'beck') {
+		evalAsync: getShimAndCall('evalAsync'),
+		"import": getShimAndCall('import'),
+		load: function (idOrArray, callback, errback) {
+			if (typeof idOrArray != 'string' || !isLocalModule(idOrArray)) {
 				getShim(function (impl) {
-					impl['import'].apply(self, [idOrArray, callback, errback]);
+					impl['load'].apply(impl, [idOrArray, callback, errback]);
 				});
 			}
 			else {
@@ -41,30 +26,87 @@ var System, Loader;
 			}
 		},
 
-		"eval": shimCallerSync('eval'),
-		get: before(function (id) { return cache[id]; }, failIfNotBeckModule),
-		has: function (id) { return id in cache; },
-		set: before(function (id, value) { return cache[id] = value; }, failIfNotBeckModule),
-		"delete": before(function (id) { delete cache[id]; }, failIfNotBeckModule)
+		eval: failNotReady,
+		get: before(function (id) { return modules[id]; }, failIfNotLocalModule),
+		has: function (id) { return id in modules; },
+		set: before(function (id, value) { return modules[id] = value; }, failIfNotLocalModule),
+		"delete": before(function (id) { delete modules[id]; }, failIfNotLocalModule)
 
 	};
 
+	function failIfNotLocalModule (id) {
+		if (!isLocalModule(id)) failNotReady();
+	}
+
+	function isLocalModule (id) {
+		return id.slice(0, namespace.length) == namespace;
+	}
+
+	/**
+	 * Creates a function that will call the ES6 Loader shim when it becomes
+	 * available and then call back.  This is used to implement async methods
+	 * on the ES6 Loader stub.
+	 * @private
+	 * @param {String} funcName
+	 * @return {Function}
+	 */
+	function getShimAndCall (funcName) {
+		return function callImplAsync () {
+			var args = arguments;
+			getShim(function (thing) {
+				thing[funcName].apply(thing, args);
+			});
+		};
+	}
+
+	/**
+	 * Creates a function that will call the ES6 Loader shim sync or fail
+	 * if the shim isn't available, yet.
+	 * @private
+	 * @param {String} funcName
+	 * @return {Function}
+	 */
+	function implCaller (funcName) {
+		return function () {
+			return impl[funcName].apply(this, arguments);
+		};
+	}
+
+	/**
+	 * Shim ES6 Loader.
+	 * @constructor
+	 * @param options
+	 * @param options
+	 * @private
+	 */
+	function Loader (parent, options) {
+		// save args to create the real shim when it is loaded
+		this._parent = parent;
+		this._options = options;
+	}
+
+	// properties added below
+	Loader.prototype = {};
+
+	for (var p in impl) {
+		if (impl.hasOwnProperty(p)) {
+			Loader.prototype[p] = implCaller(p);
+		}
+	}
+
 	// sniff System and Loader
-	if (typeof Loader == 'undefined') {
-		Loader = _Loader;
+	if (typeof global.Loader == 'undefined') {
+		global.Loader = Loader;
 	}
 
-	if (typeof System == 'undefined') {
-		System = new Loader();
+	if (typeof global.System == 'undefined') {
+		global.System = new Loader();
 	}
 
-	function failIfNotBeckModule (id) {
-		if (id.slice(0, 4) != 'beck') failNotReady();
-	}
 
 	/***** stuff to load a real ES6 Loader shim *****/
 
-	var getShim, saveShimImpl, shim;
+	var getShim, saveShim, shim;
 
 	/**
 	 * Gets the shim and calls back.  Uses before advice to modify the getShim
@@ -74,7 +116,7 @@ var System, Loader;
 	 */
 	getShim = before(
 		function (cb) {
-			fetchShim(saveShimImpl);
+			fetchShim(saveShim);
 		},
 		function (cb) {
 			// rewrite getShim
@@ -90,8 +132,8 @@ var System, Loader;
 	 * All callbacks are called at this point.
 	 * @function
 	 */
-	saveShimImpl = after(
-		saveShimProto,
+	saveShim = after(
+		saveShimImpl,
 		function (impl) {
 			// rewrite getShim
 			getShim = callShimNow;
@@ -103,37 +145,6 @@ var System, Loader;
 		impl: null,
 		waiters: []
 	};
-
-	/**
-	 * Creates a function that will call the ES6 Loader shim when it becomes
-	 * available and then call back.  This is used to implement async methods
-	 * on the ES6 Loader stub.
-	 * @private
-	 * @param {String} funcName
-	 * @return {Function}
-	 */
-	function shimCallerAsync (funcName) {
-		return function callShimAsync () {
-			var that = this, args = arguments;
-			getShim(function (impl) {
-				impl[funcName].apply(that, args);
-			});
-		};
-	}
-
-	/**
-	 * Creates a function that will call the ES6 Loader shim sync or fail
-	 * if the shim isn't available, yet.
-	 * @private
-	 * @param {String} funcName
-	 * @return {Function}
-	 */
-	function shimCallerSync (funcName) {
-		return function () {
-			if (!shim.impl) failNotReady();
-			else return shim.impl[funcName].apply(this, arguments);
-		};
-	}
 
 	/**
 	 * Fetches the Loader shim module and its dependencies.  Then it injects
@@ -151,9 +162,9 @@ var System, Loader;
 		];
 		count = ids.length;
 
-		System.import('beck/lib/Loader', after(setLoader, countdown));
+		System.load(namespace + '/lib/Loader', after(setLoader, countdown));
 		while (id = ids.shift()) {
-			System.import('beck/lib/' + id, countdown);
+			System.load(namespace + '/lib/' + id, countdown);
 		}
 
 		function countdown () {
@@ -168,11 +179,12 @@ var System, Loader;
 	function callShimWaiters (impl) {
 		var waiter;
 		while (waiter = shim.waiters.shift()) waiter(impl);
+		delete shim.waiters;
 	}
 
-	function saveShimProto (impl) {
-		// save the shim's prototype to get at the methods.
-		return shim.impl = impl.prototype;
+	function saveShimImpl (Impl) {
+		// save the implementation
+		return shim.impl = new Impl();
 	}
 
 	function setLoader (impl) {
@@ -202,8 +214,12 @@ var System, Loader;
 			loadScript(
 				{ id: id, url: url },
 				function success () {
-					if (!System.has(id)) fail();
-					else callback(System.get(id));
+					if (!System.has(id)) {
+						fail(new Error('Module not found. Probably a syntax error (or a 404 in IE).'));
+					}
+					else {
+						callback(System.get(id));
+					}
 				},
 				fail
 			);
@@ -307,8 +323,8 @@ var System, Loader;
 
 	function findScriptPath () {
 		var scriptDataAttr, scriptMatchRx, scripts, current, script, path;
-		scriptDataAttr = 'data-beck-load';
-		scriptMatchRx = /beck.*js/;
+		scriptDataAttr = 'data-' + namespace + '-load';
+		scriptMatchRx = new RegExp(namespace + '.*js');
 		current = doc.currentScript;
 		if (!current) {
 			scripts = [];
