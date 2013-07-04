@@ -37,7 +37,7 @@ var System, Loader;
 				});
 			}
 			else {
-				simpleAmd(idOrArray, callback, errback);
+				fetchModule(idOrArray, callback, errback);
 			}
 		},
 
@@ -188,65 +188,31 @@ var System, Loader;
 
 	/***** simple, temporary AMD for loading local modules *****/
 
-	var definedModules;
-
-	definedModules = {};
-
 	/**
-	 * Global define function on System object.  This is a simplified AMD-like
-	 * module wrapper to allow us to load some initial modules before a
-	 * fully-functional module loader is in place.
-	 * @function
-	 * @param {Function} factory
-	 */
-	System._define = function define (factory) {
-		var ex, id;
-		if ('*' in definedModules) {
-			ex = new Error('Duplicate anonymous define() encountered');
-		}
-		id = getDefinedModuleId() || '*';
-		definedModules[id] = new Mctx(factory, ex);
-	};
-
-	/**
-	 * Simple AMD fetcher.
+	 * Simple module-ish fetcher.
 	 * @param {String} id
 	 * @param {Function} callback
 	 * @param {Function} [errback]
 	 */
-	function simpleAmd (id, callback, errback) {
+	function fetchModule (id, callback, errback) {
 		var url;
-		if (id in definedModules ) {
-			callback(definedModules[id] = runFactory(definedModules[id]));
+		if (System.has(id)) callback(System.get(id));
+		else {
+			url = addBaseUrl(baseUrl, ensureExt(id));
+			loadScript(
+				{ id: id, url: url },
+				function success () {
+					if (!System.has(id)) fail();
+					else callback(System.get(id));
+				},
+				fail
+			);
 		}
-		url = addBaseUrl(baseUrl, ensureExt(id));
-		loadScript(
-			{ id: id, url: url },
-			function success () {
-				var key, found, mctx;
-				key = '*' in definedModules ? '*' : id;
-				found = key in definedModules;
-				mctx = definedModules[key];
-				delete definedModules['*'];
-				if (!found) {
-					fail(new Error('define() missing or syntax error'));
-				}
-				else if (mctx.ex) {
-					fail(mctx.ex);
-				}
-				callback(definedModules[id] = runFactory(mctx));
-			},
-			fail
-		);
 		function fail (ex) {
 			ex = ex || new Error('Could not load');
 			ex.message += ' ' + url;
 			if (errback) errback(ex); else throw ex;
 		}
-	};
-
-	function runFactory (mctx) {
-		return mctx instanceof Mctx ? mctx.factory() : mctx;
 	}
 
 	/**
