@@ -4,17 +4,21 @@ var System, Loader;
 
 	/***** stub ES6 Loader *****/
 
+	var cache;
+
+	cache = {};
+
 	/**
 	 * Stub ES6 Loader.  Serves as a temporary loader until a shim is in place.
 	 * @constructor
 	 * @param options
+	 * @param options
 	 * @private
 	 */
 	function _Loader (parent, options) {
-		if (!options) options = {};
-		this.global = options.global;
-		this.strict = options.strict;
-		// TODO: process other options
+		// save args to create the real shim when it is loaded
+		this._parent = parent;
+		this._options = options;
 	}
 
 	_Loader.prototype = {
@@ -24,13 +28,24 @@ var System, Loader;
 
 		evalAsync: shimCallerAsync('evalAsync'),
 		load: shimCallerAsync('load'),
-		"import": shimCallerAsync('import'),
+		//"import": shimCallerAsync('import'),
+		"import": function (idOrArray, callback, errback) {
+			var self = this;
+			if (typeof idOrArray != 'string' || idOrArray.slice(0, 4) != 'beck') {
+				getShim(function (impl) {
+					impl['import'].apply(self, [idOrArray, callback, errback]);
+				});
+			}
+			else {
+				simpleAmd(idOrArray, callback, errback);
+			}
+		},
 
 		"eval": shimCallerSync('eval'),
-		get: shimCallerSync('get'),
-		has: shimCallerSync('has'),
-		set: shimCallerSync('set'),
-		"delete": shimCallerSync('delete')
+		get: before(function (id) { return cache[id]; }, failIfNotBeckModule),
+		has: function (id) { return id in cache; },
+		set: before(function (id, value) { return cache[id] = value; }, failIfNotBeckModule),
+		"delete": before(function (id) { delete cache[id]; }, failIfNotBeckModule)
 
 	};
 
@@ -41,6 +56,10 @@ var System, Loader;
 
 	if (typeof System == 'undefined') {
 		System = new Loader();
+	}
+
+	function failIfNotBeckModule (id) {
+		if (id.slice(0, 4) != 'beck') failNotReady();
 	}
 
 	/***** stuff to load a real ES6 Loader shim *****/
@@ -95,8 +114,9 @@ var System, Loader;
 	 */
 	function shimCallerAsync (funcName) {
 		return function callShimAsync () {
+			var that = this, args = arguments;
 			getShim(function (impl) {
-				impl[funcName].apply(this, arguments);
+				impl[funcName].apply(that, args);
 			});
 		};
 	}
@@ -123,29 +143,19 @@ var System, Loader;
 	 * @param {Function} callback
 	 */
 	function fetchShim (callback) {
-		var ids, modules, count, id, Loader;
+		var ids, count, id;
 
 		ids = [
 			'Deferred',
 			'shim/XMLHttpRequest'
 		];
-		modules = {};
 		count = ids.length;
 
-		System._require('./lib/Loader', after(createLoader, countdown));
+		System.import('beck/lib/Loader', after(setLoader, countdown));
 		while (id = ids.shift()) {
-			System._require(
-				'./lib/' + id,
-				after(createSaverForModule(id), countdown)
-			);
+			System.import('beck/lib/' + id, countdown);
 		}
 
-		function createLoader (init) {
-			Loader = init(modules);
-		}
-		function createSaverForModule (id) {
-			return function (module) { modules[id] = module; };
-		}
 		function countdown () {
 			if (count-- == 0) callback(Loader);
 		}
@@ -163,6 +173,10 @@ var System, Loader;
 	function saveShimProto (impl) {
 		// save the shim's prototype to get at the methods.
 		return shim.impl = impl.prototype;
+	}
+
+	function setLoader (impl) {
+		Loader = impl;
 	}
 
 	function callShimNow (cb) { cb(shim.impl); }
@@ -200,7 +214,7 @@ var System, Loader;
 	 * @param {Function} callback
 	 * @param {Function} [errback]
 	 */
-	System._require = function simpleAmd (id, callback, errback) {
+	function simpleAmd (id, callback, errback) {
 		var url;
 		if (id in definedModules ) {
 			callback(definedModules[id] = runFactory(definedModules[id]));
@@ -257,7 +271,7 @@ var System, Loader;
 
 	// node, ringojs, etc.
 	if (typeof module != 'undefined' && typeof require == 'function') {
-		baseUrl = stripFilePart(module.uri);
+		baseUrl = stripFilePart(module.uri) + '../';
 		loadScript = createCallbackLoader(require);
 		// in node, module.id is bogus, don't try to use it.
 		getDefinedModuleId = noop;
@@ -265,7 +279,7 @@ var System, Loader;
 	// browser
 	else if (doc) {
 		activeScripts = {};
-		baseUrl = stripFilePart(findScriptPath());
+		baseUrl = stripFilePart(findScriptPath()) + '../';
 		loadScript = createBrowserScriptLoader(doc);
 		getDefinedModuleId = getCurrentScriptId;
 	}
