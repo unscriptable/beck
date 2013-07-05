@@ -163,7 +163,7 @@
 			'Deferred',
 			'object',
 			'path',
-			'pipeline'
+			'Pipeline'
 		];
 		count = ids.length;
 

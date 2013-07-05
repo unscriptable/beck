@@ -46,6 +46,3 @@ use a basic loader?  These will have to be stored in a pseudo-module format.
 	* path functions
 	* object functions
 	* other things needed to load beck's module format: cjsm
-
-// TODO: figure out how to provide module (scoped var) id and url in link step
-// TODO: figure out how to provide the correct global in link step
