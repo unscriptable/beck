@@ -71,6 +71,6 @@ path = {
 	}
 };
 
-System.set('beck/lib/path', ToModule(path));
+System.set('beck/shim/path', ToModule(path));
 
 }());

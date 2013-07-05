@@ -161,13 +161,14 @@
 
 		ids = [
 			'Deferred',
+			'object',
 			'path'
 		];
 		count = ids.length;
 
 		System.load('beck/lib/Loader', after(setLoader, countdown));
 		while (id = ids.shift()) {
-			System.load('beck/lib/' + id, countdown);
+			System.load('beck/shim/' + id, countdown);
 		}
 
 		function countdown () {

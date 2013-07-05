@@ -29,8 +29,20 @@ Stay tuned for further updates.
 		* System.load(module)
 * Config could also be supplied in an HTML data-* attr
 
-## Open questions
+## Questions
 
 * How does beck wait for first require/request or config() call in node/ringo?
 	* ENV var?
 	* System.load/import
+
+* What format should beck's local modules be in?
+	* ES6 eventually, of course. CommonJS for now.
+		* Loading of cjsm requires similar resources as json and es6
+		* Easy to test
+
+* What's the minimum set of functions/features in order to create and
+use a basic loader?  These will have to be stored in a pseudo-module format.
+	* Deferred
+	* path functions
+	* object functions
+	* other things needed to load beck's module format: cjsm

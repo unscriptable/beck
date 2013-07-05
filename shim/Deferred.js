@@ -164,6 +164,6 @@
 		return Deferred.nextTurn.apply(this, arguments);
 	};
 
-	System.set('beck/lib/Deferred', ToModule(Deferred));
+	System.set('beck/shim/Deferred', ToModule(Deferred));
 
 }());
