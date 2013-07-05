@@ -2,9 +2,7 @@
 
 	/***** temporary loader impl *****/
 
-	var namespace, modules, impl;
-
-	namespace = 'beck';
+	var modules, impl;
 
 	modules = {};
 
@@ -39,7 +37,7 @@
 	}
 
 	function isLocalModule (id) {
-		return id.slice(0, namespace.length) == namespace;
+		return id.slice(0, 4) == 'beck';
 	}
 
 	/**
@@ -88,6 +86,7 @@
 	// properties added below
 	Loader.prototype = {};
 
+	// TODO: when the API stabilizes, we should use the real function signatures
 	for (var p in impl) {
 		if (impl.hasOwnProperty(p)) {
 			Loader.prototype[p] = implCaller(p);
@@ -101,6 +100,12 @@
 
 	if (typeof global.System == 'undefined') {
 		global.System = new Loader();
+	}
+
+	if (typeof global.Module == 'undefined') {
+		// TODO: implement the Module constructor
+		global.Module = function Module (obj) { return obj; };
+		global.ToModule = function ToModule (obj) { return new Module(obj); };
 	}
 
 
@@ -147,9 +152,7 @@
 	};
 
 	/**
-	 * Fetches the Loader shim module and its dependencies.  Then it injects
-	 * the dependencies into the shim module's init function to create
-	 * the Loader shim.
+	 * Fetches the Loader shim module and its dependencies.
 	 * @private
 	 * @param {Function} callback
 	 */
@@ -158,13 +161,13 @@
 
 		ids = [
 			'Deferred',
-			'shim/XMLHttpRequest'
+			'path'
 		];
 		count = ids.length;
 
-		System.load(namespace + '/lib/Loader', after(setLoader, countdown));
+		System.load('beck/lib/Loader', after(setLoader, countdown));
 		while (id = ids.shift()) {
-			System.load(namespace + '/lib/' + id, countdown);
+			System.load('beck/lib/' + id, countdown);
 		}
 
 		function countdown () {
@@ -323,8 +326,8 @@
 
 	function findScriptPath () {
 		var scriptDataAttr, scriptMatchRx, scripts, current, script, path;
-		scriptDataAttr = 'data-' + namespace + '-load';
-		scriptMatchRx = new RegExp(namespace + '.*js');
+		scriptDataAttr = 'data-beck-load';
+		scriptMatchRx = /beck.*js/;
 		current = doc.currentScript;
 		if (!current) {
 			scripts = [];
