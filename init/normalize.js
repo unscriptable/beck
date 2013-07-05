@@ -7,10 +7,10 @@
 		return reduceLeadingDots(String(name), referer || '');
 	}
 
-	System.set('beck/pipeline/normalize', ToModule(normalize));
+	System.set('beck/init/normalize', ToModule(normalize));
 
 	function getImpl () {
-		reduceLeadingDots = System.get('beck/lib/path').reduceLeadingDots;
+		reduceLeadingDots = System.get('beck/init/path').reduceLeadingDots;
 		return reduceLeadingDots.apply(this, arguments);
 	}
 

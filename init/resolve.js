@@ -6,10 +6,10 @@
 		return joinPaths('./', normalized);
 	}
 
-	System.set('beck/pipeline/resolve', ToModule(resolve));
+	System.set('beck/init/resolve', ToModule(resolve));
 
 	function getJoinPathsImpl () {
-		joinPaths = System.get('beck/lib/path').joinPaths;
+		joinPaths = System.get('beck/init/path').joinPaths;
 		return joinPaths.apply(this, arguments);
 	}
 

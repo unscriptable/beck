@@ -6,7 +6,7 @@ findDotsRx = /(\.)(\.?)(?:$|\/([^\.\/]+.*)?)/g;
 
 /**
  * @type {Object}
- * @module 'beck/lib/path'
+ * @module 'beck/init/path'
  */
 path = {
 	/**
@@ -71,6 +71,6 @@ path = {
 	}
 };
 
-System.set('beck/shim/path', ToModule(path));
+System.set('beck/init/path', ToModule(path));
 
 }());

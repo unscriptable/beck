@@ -4,7 +4,7 @@
 		return parseCjsm(source);
 	}
 
-	System.set('beck/pipeline/link', ToModule(link));
+	System.set('beck/init/link', ToModule(link));
 
 	var removeCommentsRx, findRValueRequiresRx;
 

@@ -12,7 +12,7 @@
 		);
 	}
 
-	System.set('beck/pipeline/cjs/fetch', ToModule(fetch));
+	System.set('beck/init/fetch', ToModule(fetch));
 
 	function addSourceUrl (url, source) {
 		return source
@@ -22,7 +22,7 @@
 	}
 
 	function fetchTextImpl () {
-		fetchText = System.get('beck/shim/fetchText');
+		fetchText = System.get('beck/init/fetchText');
 		return fetchText.apply(this, arguments);
 	}
 

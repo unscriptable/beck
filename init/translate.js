@@ -4,6 +4,6 @@
 		return source;
 	}
 
-	System.set('beck/pipeline/translate', ToModule(translate));
+	System.set('beck/init/translate', ToModule(translate));
 
 }());

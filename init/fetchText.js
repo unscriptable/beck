@@ -17,6 +17,6 @@
 		xhr.send(null);
 	}
 
-	System.set('beck/shim/fetchText', ToModule(fetchText));
+	System.set('beck/init/fetchText', ToModule(fetchText));
 
 }());

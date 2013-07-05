@@ -23,6 +23,6 @@ var XMLHttpRequest;
 		};
 	}
 
-	System.set('beck/shim/XMLHttpRequest', ToModule(XMLHttpRequest));
+	System.set('beck/init/XMLHttpRequest', ToModule(XMLHttpRequest));
 
 }());
