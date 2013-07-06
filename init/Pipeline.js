@@ -1,61 +1,70 @@
 (function (global, cjsmEval) {
 
+
+	/***** imports *****/
+
 	var reduceLeadingDots = getReduceLeadingDotsImpl;
 	var joinPaths = getJoinPathsImpl;
 	var fetchText = getFetchTextImpl;
+
+
+	/***** exports *****/
+
+	var pipeline  = {
+		normalize: normalize,
+		resolve: resolve,
+		fetch: fetch,
+		translate: translate,
+		link: link
+	};
+
+	System.set('beck/init/pipeline', ToModule(pipeline));
+
 
 	var removeCommentsRx, findRValueRequiresRx;
 
 	removeCommentsRx = /\/\*[\s\S]*?\*\/|\/\/.*?[\n\r]/g;
 	findRValueRequiresRx = /require\s*\(\s*(["'])(.*?[^\\])\1\s*\)|[^\\]?(["'])/g;
 
-	function Pipeline () {
-
-		var mctx = {};
-
-		function normalize (name, referer) {
-			if (typeof referer == 'object') referer = referer.name;
-			mctx.relName = name;
-			mctx.refererName = referer;
-			mctx.name = reduceLeadingDots(String(name), referer || '');
-			return mctx.name;
-		}
-
-		function resolve (normalized, referer) {
-			mctx.url = joinPaths('./', normalized);
-			return mctx.url;
-		}
-
-		function fetch (resolved, fulfill, reject) {
-			fetchText(
-				resolved,
-				function (source) {
-					fulfill(addSourceUrl(resolved, source));
-				},
-				reject
-			);
-		}
-
-		function translate (source) {
-			return source;
-		}
-
-		function link (source) {
-			return parseCjsm(mctx, source);
-		}
-
-		return {
-			mctx: mctx,
-			normalize: normalize,
-			resolve: resolve,
-			fetch: fetch,
-			translate: translate,
-			link: link
+	function normalize (name, referer) {
+		var normalized, mctx;
+		if (typeof referer == 'object') referer = referer.name;
+		normalized = reduceLeadingDots(String(name), referer || '');
+		mctx = {
+			name: normalized,
+			relName: name,
+			refererName: referer
 		};
-
+		return {
+			normalized: normalized,
+			metadata: mctx
+		};
 	}
 
-	System.set('beck/init/Pipeline', ToModule(Pipeline));
+	function resolve (normalized, options) {
+		var mctx = options.metadata;
+		mctx.url = joinPaths('./', normalized);
+		return mctx.url;
+	}
+
+	function fetch (resolved, fulfill, reject, options) {
+		fetchText(
+			resolved,
+			function (source) {
+				fulfill(addSourceUrl(resolved, source));
+			},
+			reject
+		);
+	}
+
+	function translate (source, options) {
+		return source;
+	}
+
+	function link (source, options) {
+		var mctx = options.metadata;
+		return parseCjsm(mctx, source);
+	}
 
 	function addSourceUrl (url, source) {
 		return source
