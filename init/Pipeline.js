@@ -62,8 +62,7 @@
 	}
 
 	function link (source, options) {
-		var mctx = options.metadata;
-		return parseCjsm(mctx, source);
+		return parseCjsm(source, options);
 	}
 
 	function addSourceUrl (url, source) {
@@ -73,9 +72,10 @@
 			+ '\n*/\n';
 	}
 
-	function parseCjsm (mctx, source) {
-		var currQuote;
+	function parseCjsm (source, options) {
+		var mctx, currQuote;
 
+		mctx = options.metadata;
 		mctx.deps = [];
 		mctx.depsMap = {};
 
@@ -88,27 +88,35 @@
 			}
 			// if we're not inside a quoted string
 			else if (!currQuote) {
-				mctx.depsMap[id] = mctx.deps.push(id) - 1;
+				// push [relative] id into deps list and deps map
+				if (!(id in mctx.depsMap)) {
+					mctx.depsMap[id] = mctx.deps.push(id) - 1;
+				}
 			}
 			return ''; // uses least RAM/CPU
 		});
 
 		return {
 			imports: mctx.deps,
-			execute: createCjsmFactory(mctx, source)
+			execute: createCjsmFactory(source, options)
 		};
 	}
 
-	function createCjsmFactory (mctx, source) {
+	// Note: does not support computed module ids in require() calls or
+	// async require(id, cb, eb) as in AMD!
+	function createCjsmFactory (source, options) {
 		// just create a factory
 		return function () {
-			var deps, require, exports, module, glob;
+			var mctx, deps, require, exports, module, glob;
 
+			mctx = options.metadata;
 			deps = arguments;
 			require = function (id) { return deps[mctx.depsMap[id]]; };
 			exports = {};
 			module = { id: mctx.name, uri: mctx.url, exports: exports };
-			glob = 'global' in mctx ? mctx.global : global;
+			glob = ('global' in options && options.global)
+				|| ('global' in mctx && mctx.global)
+				|| global;
 
 			cjsmEval(require, exports, module, glob, source);
 
