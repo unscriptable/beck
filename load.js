@@ -77,29 +77,29 @@
 	 * @param options
 	 * @private
 	 */
-	function Loader (parent, options) {
+	function LoaderImpl (parent, options) {
 		// save args to create the real shim when it is loaded
 		this._parent = parent;
 		this._options = options;
 	}
 
 	// properties added below
-	Loader.prototype = {};
+	LoaderImpl.prototype = {};
 
 	// TODO: when the API stabilizes, we should use the real function signatures
 	for (var p in impl) {
 		if (impl.hasOwnProperty(p)) {
-			Loader.prototype[p] = implCaller(p);
+			LoaderImpl.prototype[p] = implCaller(p);
 		}
 	}
 
 	// sniff System and Loader
-	if (typeof global.Loader == 'undefined') {
-		global.Loader = Loader;
+	if (typeof global.LoaderImpl == 'undefined') {
+		global.LoaderImpl = LoaderImpl;
 	}
 
 	if (typeof global.System == 'undefined') {
-		global.System = new Loader();
+		global.System = new LoaderImpl();
 	}
 
 	if (typeof global.Module == 'undefined') {
@@ -167,13 +167,13 @@
 		];
 		count = ids.length;
 
-		System.load('beck/lib/Loader', after(setLoader, countdown));
+		System.load('beck/init/Loader', after(setLoader, countdown));
 		while (id = ids.shift()) {
 			System.load('beck/init/' + id, countdown);
 		}
 
 		function countdown () {
-			if (count-- == 0) callback(Loader);
+			if (count-- == 0) callback(LoaderImpl);
 		}
 	}
 
@@ -193,7 +193,7 @@
 	}
 
 	function setLoader (impl) {
-		Loader = impl;
+		LoaderImpl = impl;
 	}
 
 	function callShimNow (cb) { cb(shim.impl); }

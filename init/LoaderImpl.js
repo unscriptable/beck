@@ -1,17 +1,16 @@
-var System, Loader, Module, ToModule;
 (function (global, globalEval) {
 
 	var init, Deferred;
 
 	init = setDeps;
 
-	Loader = function Loader (parent, options) {
+	LoaderImpl = function LoaderImpl (parent, options) {
 		// TODO: inherit from parent
 		init();
 		this._cache = createCache();
 	};
 
-	Loader.prototype = {
+	LoaderImpl.prototype = {
 
 		global: global,
 		strict: true,
@@ -45,7 +44,7 @@ var System, Loader, Module, ToModule;
 
 	};
 
-	System.set('beck/lib/Loader', ToModule(Loader));
+	System.set('beck/init/LoaderImpl', ToModule(LoaderImpl));
 
 	function createCache (seed) {
 		// TODO: inherit from seed
