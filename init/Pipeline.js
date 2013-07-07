@@ -10,15 +10,17 @@
 
 	/***** exports *****/
 
-	var pipeline  = {
-		normalize: normalize,
-		resolve: resolve,
-		fetch: fetch,
-		translate: translate,
-		link: link
-	};
+	function Pipeline () {
+		return {
+			normalize: normalize,
+			resolve: resolve,
+			fetch: fetch,
+			translate: translate,
+			link: link
+		};
+	}
 
-	System.set('beck/init/pipeline', ToModule(pipeline));
+	System.set('beck/init/Pipeline', ToModule(Pipeline));
 
 
 	var removeCommentsRx, findRValueRequiresRx, absUrlRx;

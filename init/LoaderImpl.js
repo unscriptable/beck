@@ -1,8 +1,9 @@
 (function (global, globalEval) {
 
-	var Deferred;
+	var Deferred, Pipeline;
 
 	Deferred = getDeferredImpl;
+	Pipeline = getPipelineImpl;
 
 	function LoaderImpl (parent, options) {
 		// TODO: inherit cache from parent
@@ -59,6 +60,11 @@
 	function getDeferredImpl () {
 		Deferred = System.get('beck/lib/Deferred');
 		return new Deferred();
+	}
+
+	function getPipelineImpl () {
+		Pipeline = System.get('beck/init/Pipeline');
+		return Pipeline();
 	}
 
 	function noop () {}
