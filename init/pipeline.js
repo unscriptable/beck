@@ -21,10 +21,11 @@
 	System.set('beck/init/pipeline', ToModule(pipeline));
 
 
-	var removeCommentsRx, findRValueRequiresRx;
+	var removeCommentsRx, findRValueRequiresRx, absUrlRx;
 
 	removeCommentsRx = /\/\*[\s\S]*?\*\/|\/\/.*?[\n\r]/g;
 	findRValueRequiresRx = /require\s*\(\s*(["'])(.*?[^\\])\1\s*\)|[^\\]?(["'])/g;
+	absUrlRx = /^\/|^[^:]+:\/\//;
 
 	function normalize (name, referer) {
 		var normalized, mctx;
@@ -63,6 +64,10 @@
 
 	function link (source, options) {
 		return parseCjsm(source, options);
+	}
+
+	function isAbsUrl (url) {
+		return absUrlRx.test(url);
 	}
 
 	function addSourceUrl (url, source) {
@@ -111,7 +116,20 @@
 
 			mctx = options.metadata;
 			deps = arguments;
-			require = function (id) { return deps[mctx.depsMap[id]]; };
+			require = function (id) {
+				var dep;
+				if (id in mctx.depsMap) {
+					dep = deps[mctx.depsMap[id]];
+				}
+				// TODO: figure out if/how to resolve relative require()s
+				else if (isAbsUrl(id) && System.has(id)) {
+					dep = System.get(id);
+				}
+				else {
+					throw new Error('Module not resolved: ' + id + '. Dynamic require() not supported.');
+				}
+				return dep;
+			};
 			exports = {};
 			module = { id: mctx.name, uri: mctx.url, exports: exports };
 			glob = ('global' in options && options.global)
