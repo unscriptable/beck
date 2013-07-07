@@ -1,12 +1,11 @@
 (function (global, globalEval) {
 
-	var init, Deferred;
+	var Deferred;
 
-	init = setDeps;
+	Deferred = getDeferredImpl;
 
 	LoaderImpl = function LoaderImpl (parent, options) {
 		// TODO: inherit from parent
-		init();
 		this._cache = createCache();
 	};
 
@@ -56,9 +55,9 @@
 		};
 	}
 
-	function setDeps () {
+	function getDeferredImpl () {
 		Deferred = System.get('beck/lib/Deferred');
-		init = noop;
+		return new Deferred();
 	}
 
 	function noop () {}
