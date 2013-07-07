@@ -1,13 +1,26 @@
 (function (global, globalEval) {
 
-	var Deferred, Pipeline;
+	var Deferred, Pipeline, extend;
 
 	Deferred = getDeferredImpl;
 	Pipeline = getPipelineImpl;
+	extend = getExtendImpl;
 
-	function LoaderImpl (parent, options) {
-		// TODO: inherit cache from parent
-		this.cache = {};
+	function LoaderImpl (parentImpl, options) {
+		var pipeline;
+		// inherit from parent
+		this.cache = parentImpl ? extend(parentImpl.cache) : {};
+		this.pipeline = pipeline = parentImpl
+			? extend(parentImpl.pipeline)
+			: new Pipeline();
+		// extend from options
+		if ('global' in options) this.global = options.global;
+		if ('strict' in options) this.strict = options.strict;
+		if ('normalize' in options) pipeline.normalize = options.normalize;
+		if ('resolve' in options) pipeline.resolve = options.resolve;
+		if ('fetch' in options) pipeline.fetch = options.fetch;
+		if ('translate' in options) pipeline.translate = options.translate;
+		if ('link' in options) pipeline.link = options.link;
 	}
 
 	LoaderImpl.prototype = {
@@ -64,7 +77,12 @@
 
 	function getPipelineImpl () {
 		Pipeline = System.get('beck/init/Pipeline');
-		return Pipeline();
+		return new Pipeline();
+	}
+
+	function getExtendImpl () {
+		extend = System.get('beck/init/object').extend;
+		return extend.apply(this, arguments);
 	}
 
 	function noop () {}
