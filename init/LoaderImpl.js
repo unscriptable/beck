@@ -4,10 +4,10 @@
 
 	Deferred = getDeferredImpl;
 
-	LoaderImpl = function LoaderImpl (parent, options) {
-		// TODO: inherit from parent
-		this._cache = createCache();
-	};
+	function LoaderImpl (parent, options) {
+		// TODO: inherit cache from parent
+		this.cache = {};
+	}
 
 	LoaderImpl.prototype = {
 
@@ -36,24 +36,25 @@
 
 		"import": function () {},
 
-		get: function () {},
-		has: function () {},
-		set: function () {},
-		"delete": function () {}
+		get: function (name) {
+			return this.cache[String(name)];
+		},
+
+		has: function (name) {
+			return String(name) in this.cache;
+		},
+
+		set: function (name, thing) {
+			cache[String(name)] = ToModule(thing);
+		},
+
+		"delete": function (name) {
+			delete cache[String(name)];
+		}
 
 	};
 
 	System.set('beck/init/LoaderImpl', ToModule(LoaderImpl));
-
-	function createCache (seed) {
-		// TODO: inherit from seed
-		var cache = {};
-		return {
-			get: function (id) { return cache[id]; },
-			set: function (id, thing) { return cache[id] = thing; },
-			has: function (id) { return id in cache; }
-		};
-	}
 
 	function getDeferredImpl () {
 		Deferred = System.get('beck/lib/Deferred');
