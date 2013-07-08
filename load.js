@@ -18,7 +18,7 @@
 				var loader = this;
 				if (typeof idOrArray != 'string' || !isBeckModule(idOrArray)) {
 					getShim(function (newImpl) {
-						return newImpl.load([idOrArray, callback, errback]);
+						return newImpl.load(idOrArray, callback, errback);
 					});
 				}
 				else {
@@ -175,7 +175,8 @@
 			'Deferred',
 			'object',
 			'path',
-			'Pipeline'
+			'Pipeline',
+			'fetchText'
 		];
 		count = ids.length;
 

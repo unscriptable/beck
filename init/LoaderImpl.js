@@ -12,7 +12,7 @@
 		if (!options) options = {};
 		// inherit from parent
 		this.cache = parentImpl ? extend(parentImpl.cache) : {};
-		this.pipeline = pipeline = parentImpl
+		this.pipeline = pipeline = parentImpl && parentImpl.pipeline
 			? extend(parentImpl.pipeline)
 			: new Pipeline();
 		// extend from options
@@ -44,8 +44,6 @@
 			}
 		},
 
-		// TODO...
-
 		load: function (idOrArray, callback, errback) {
 			var when, pipeline, options, dfd, loader, withOptions, promisify;
 
@@ -68,16 +66,16 @@
 			.then(pipeline.normalize)
 
 			// process result according to spec
-			.then(withOptions(this.processNormalized, options))
+			.then(withOptions(bind(this, 'processNormalized'), options))
 
 			// abort if we've already got this module or we're fetching it
-			.then(withOptions(this.checkCache, options))
+			.then(withOptions(bind(this, 'checkCache'), options))
 
 			// resolve url
 			.then(withOptions(pipeline.resolve, options))
 
 			// process result according to spec
-			.then(withOptions(this.processResolved, options))
+			.then(withOptions(bind(this, 'processResolved'), options))
 
 			// fetch from url
 			.then(withOptions(promisify(pipeline.fetch), options))
@@ -89,7 +87,7 @@
 			.then(withOptions(pipeline.link, options))
 
 			// process result according to spec
-			.then(withOptions(this.processModule, options))
+			.then(withOptions(bind(this, 'processModule'), options))
 
 			// handle errors and early aborts
 			.then(null, function (reason) {
@@ -137,26 +135,35 @@
 		},
 
 		processResolved: function (result, options) {
-			options.address = typeof result == 'object' ? result.address : result;
-			if (result && 'extra' in result) options.extra = result.extra;
+			if (typeof result == 'object') {
+				options.address = result.address;
+				if ('extra' in result) options.extra = result.extra;
+			}
+			else {
+				options.address = result;
+			}
 			return options.address;
 		},
 
 		processModule: function (module, options) {
 			// TODO: handle when result is undefined? (per spec)
 			if (!module instanceof Module) module = ToModule(module);
+			var dfd = this.get(options.normalized);
 			this.set(options.normalized, module);
+			if (dfd instanceof Deferred) dfd.fulfill(module);
 			return this.get(options.normalized);
 		},
 
 		checkCache: function (normalized, options) {
-			if (loader.has(normalized)) {
-				throw new loader.get(normalized);
+			if (this.has(normalized)) {
+				// throw it so we can abort the rest of the pipeline.
+				// it'll get caught in the error handler.
+				throw new this.get(normalized);
 			}
 			else {
-				dfd = new Deferred();
-				// hm, can't use .set() here since it'll turn this into a module
-				loader.cache[normalized] = dfd.promise;
+				// put a promise in the cache
+				// can't use .set() here since it'll turn the promise into a module
+				this.cache[normalized] = new Deferred();
 			}
 			return normalized;
 		},
@@ -176,7 +183,7 @@
 					var dfd, args, result;
 					dfd = new Deferred();
 					args = toArray(arguments);
-					args.splice(1, 0, [dfd.resolve, dfd.reject]);
+					args.splice(1, 0, dfd.fulfill, dfd.reject);
 					try {
 						result = func.apply(this, args);
 					}
@@ -213,6 +220,12 @@
 
 	function toArray (obj) {
 		return Array.prototype.slice.apply(obj);
+	}
+
+	function bind (ctx, funcName) {
+		return function () {
+			return ctx[funcName].apply(ctx, arguments);
+		}
 	}
 
 	function noop () {}
