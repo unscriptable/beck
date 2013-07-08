@@ -2,41 +2,43 @@
 
 	/***** temporary loader impl *****/
 
-	var modules, impl;
+	var modules, shimImpl;
 
 	modules = {};
 
-	impl = {
+	shimImpl = function (/* parentImpl, options */) {
+		return {
+			global: global,
+			strict: true,
+			cache: modules,
 
-		global: global,
-		strict: true,
+			evalAsync: getShimAndCall('evalAsync'),
+			"import": getShimAndCall('import'),
+			load: function (idOrArray, callback, errback) {
+				var loader = this;
+				if (typeof idOrArray != 'string' || !isBeckModule(idOrArray)) {
+					getShim(function (newImpl) {
+						return newImpl.load([idOrArray, callback, errback]);
+					});
+				}
+				else {
+					fetchModule(idOrArray, callback, errback);
+				}
+			},
 
-		evalAsync: getShimAndCall('evalAsync'),
-		"import": getShimAndCall('import'),
-		load: function (idOrArray, callback, errback) {
-			if (typeof idOrArray != 'string' || !isLocalModule(idOrArray)) {
-				getShim(function (impl) {
-					impl['load'].apply(impl, [idOrArray, callback, errback]);
-				});
-			}
-			else {
-				fetchModule(idOrArray, callback, errback);
-			}
-		},
-
-		eval: failNotReady,
-		get: before(function (id) { return modules[id]; }, failIfNotLocalModule),
-		has: function (id) { return id in modules; },
-		set: before(function (id, value) { return modules[id] = value; }, failIfNotLocalModule),
-		"delete": before(function (id) { delete modules[id]; }, failIfNotLocalModule)
-
+			eval: failNotReady,
+			get: before(function (id) { return modules[id]; }, failIfNotBeckModule),
+			has: function (id) { return id in modules; },
+			set: before(function (id, value) { return modules[id] = value; }, failIfNotBeckModule),
+			"delete": before(function (id) { delete modules[id]; }, failIfNotBeckModule)
+		};
 	};
 
-	function failIfNotLocalModule (id) {
-		if (!isLocalModule(id)) failNotReady();
+	function failIfNotBeckModule (id) {
+		if (!isBeckModule(id)) failNotReady();
 	}
 
-	function isLocalModule (id) {
+	function isBeckModule (id) {
 		return id.slice(0, 4) == 'beck';
 	}
 
@@ -51,8 +53,8 @@
 	function getShimAndCall (funcName) {
 		return function callImplAsync () {
 			var args = arguments;
-			getShim(function (thing) {
-				thing[funcName].apply(thing, args);
+			getShim(function (newImpl) {
+				newImpl[funcName].apply(newImpl, args);
 			});
 		};
 	}
@@ -66,7 +68,7 @@
 	 */
 	function implCaller (funcName) {
 		return function () {
-			return impl[funcName].apply(this, arguments);
+			return getImpl(this)[funcName].apply(this, arguments);
 		};
 	}
 
@@ -77,29 +79,39 @@
 	 * @param options
 	 * @private
 	 */
-	function LoaderImpl (parent, options) {
-		// save args to create the real shim when it is loaded
-		this._parent = parent;
-		this._options = options;
+	function Loader (parent, options) {
+		var impl, vo;
+		impl = new shimImpl(parent, options);
+		setImpl(this, impl);
 	}
 
-	// properties added below
-	LoaderImpl.prototype = {};
-
-	// TODO: when the API stabilizes, we should use the real function signatures
-	for (var p in impl) {
-		if (impl.hasOwnProperty(p)) {
-			LoaderImpl.prototype[p] = implCaller(p);
-		}
-	}
+	Loader.prototype = {
+		// TODO: use Object.defineProperties or a shim for it
+		global: global,
+		strict: true,
+		evalAsync: function (src, callback, errback) {
+			return getImpl(this).evalAsync(src, callback, errback);
+		},
+		"import": function (idOrArray, callback, errback) {
+			return getImpl(this)['import'](idOrArray, callback, errback);
+		},
+		load: function (idOrArray, callback, errback) {
+			return getImpl(this).load(idOrArray, callback, errback);
+		},
+		eval: function (src) { return getImpl(this).eval(src); },
+		get: function (name) { return getImpl(this).get(name); },
+		set: function (name, value) { return getImpl(this).set(name, value); },
+		has: function (name) { return getImpl(this).has(name); },
+		"delete": function (name) { return getImpl(this)['delete'](name); }
+	};
 
 	// sniff System and Loader
-	if (typeof global.LoaderImpl == 'undefined') {
-		global.LoaderImpl = LoaderImpl;
+	if (typeof global.Loader == 'undefined') {
+		global.Loader = Loader;
 	}
 
 	if (typeof global.System == 'undefined') {
-		global.System = new LoaderImpl();
+		global.System = new Loader();
 	}
 
 	if (typeof global.Module == 'undefined') {
@@ -138,7 +150,7 @@
 	 * @function
 	 */
 	saveShim = after(
-		saveShimImpl,
+		swapShimImpl,
 		function (impl) {
 			// rewrite getShim
 			getShim = callShimNow;
@@ -157,7 +169,7 @@
 	 * @param {Function} callback
 	 */
 	function fetchShim (callback) {
-		var ids, count, id;
+		var ids, count, id, LoaderImpl;
 
 		ids = [
 			'Deferred',
@@ -167,13 +179,17 @@
 		];
 		count = ids.length;
 
-		System.load('beck/init/Loader', after(setLoader, countdown));
+		System.load('beck/init/LoaderImpl', after(setLoader, countdown));
 		while (id = ids.shift()) {
 			System.load('beck/init/' + id, countdown);
 		}
 
 		function countdown () {
 			if (count-- == 0) callback(LoaderImpl);
+		}
+
+		function setLoader (impl) {
+			LoaderImpl = impl;
 		}
 	}
 
@@ -187,16 +203,33 @@
 		delete shim.waiters;
 	}
 
-	function saveShimImpl (Impl) {
-		// save the implementation
-		return shim.impl = new Impl();
-	}
-
-	function setLoader (impl) {
-		LoaderImpl = impl;
+	function swapShimImpl (Impl) {
+		// save the implementation for calls to `new Loader()`
+		shimImpl = Impl;
+		// switch System loader's impl and transfer cache, options, etc.
+		var oldImpl = getImpl(System),
+			newImpl = new Impl(oldImpl, oldImpl.options);
+		setImpl(System, newImpl);
+		// return a usable new implementation
+		return newImpl;
 	}
 
 	function callShimNow (cb) { cb(shim.impl); }
+
+	var implKey = {};
+
+	function setImpl (loader, impl) {
+		var vo;
+		vo = loader.valueOf;
+		loader.valueOf = function () {
+			if (arguments[0] == implKey) return impl;
+			else return vo.apply(loader);
+		};
+	}
+
+	function getImpl (loader) {
+		return loader.valueOf(implKey);
+	}
 
 	function failNotReady () {
 		throw new Error('Cannot access loader before it is fully loaded.');
