@@ -1,14 +1,13 @@
 (function (global, globalEval) {
 
-	var when, Deferred, Pipeline, extend;
+	var promise, when, defer, all, Pipeline, extend;
 
-	when = getWhenImpl;
-	Deferred = getDeferredImpl;
 	Pipeline = getPipelineImpl;
 	extend = getExtendImpl;
 
 	function LoaderImpl (parentImpl, options) {
 		var pipeline;
+		getPromiseImpl();
 		if (!options) options = {};
 		// inherit from parent
 		this.cache = parentImpl ? extend(parentImpl.cache) : {};
@@ -45,14 +44,13 @@
 		},
 
 		load: function (idOrArray, callback, errback) {
-			var when, pipeline, options, dfd, loader, withOptions, promisify;
+			var pipeline, options, dfd, loader, withOptions, promisify;
 
 			// ignoring arrays for now.... TODO: implement for array, too.
 			// TODO: pre-prepare pipeline instead of building it from scratch each time
 				// withOptions
 				// promisify
 
-			when = getWhenImpl();
 			pipeline = this.pipeline;
 			options = {};
 			loader = this;
@@ -60,7 +58,7 @@
 			promisify = this.promisify;
 
 			// start pipeline with id as input
-			when(idOrArray)
+			return when(idOrArray)
 
 			// normalize name
 			.then(pipeline.normalize)
@@ -86,6 +84,9 @@
 			// link
 			.then(withOptions(pipeline.link, options))
 
+			// get imported modules
+			.then(withOptions(bind(this, 'processImports'), options))
+
 			// process result according to spec
 			.then(withOptions(bind(this, 'processModule'), options))
 
@@ -94,7 +95,7 @@
 				if (reason instanceof Module) {
 					callback(loader.get(options.normalized));
 				}
-				else if (reason instanceof Deferred) {
+				else if (reason instanceof defer) {
 					reason.promise.then(callback, errback);
 				}
 				else {
@@ -112,7 +113,12 @@
 			// this sniff will be safer
 			if (module && typeof module.execute == 'function') {
 				// run factory
-				this.cache[String(name)] = module = module.execute();
+				var deps = [];
+				for (var i = 0; i < module.imports.length; i++) {
+					deps[i] = this.get(module.imports[i]);
+				}
+				this.cache[String(name)] = module
+					= module.execute.apply(null, deps);
 			}
 			return module;
 		},
@@ -152,6 +158,18 @@
 			return options.address;
 		},
 
+		processImports: function (result, options) {
+			var imports, count, promises;
+			imports = result.imports;
+			count = 0;
+			promises = [];
+			while (count < imports.length) {
+				promises.push(this.load(imports[count]));
+				count++;
+			}
+			return all(promises).yield(result);
+		},
+
 		processModule: function (module, options) {
 			// TODO: handle when result is undefined? (per spec)
 			if (!module instanceof Module) module = ToModule(module);
@@ -159,7 +177,7 @@
 			this.set(options.normalized, module);
 			// hackish way to ensure factory has run
 			module = this.get(options.normalized);
-			if (dfd instanceof Deferred) dfd.fulfill(module);
+			if (dfd instanceof defer) dfd.fulfill(module);
 			return module;
 		},
 
@@ -172,7 +190,7 @@
 			else {
 				// put a promise in the cache
 				// can't use .set() here since it'll turn the promise into a module
-				this.cache[normalized] = new Deferred();
+				this.cache[normalized] = defer();
 			}
 			return normalized;
 		},
@@ -190,7 +208,7 @@
 				// 2nd and 3rd params to be callbacks and inserts them.
 				return function () {
 					var dfd, args, result;
-					dfd = new Deferred();
+					dfd = defer();
 					args = toArray(arguments);
 					args.splice(1, 0, dfd.fulfill, dfd.reject);
 					try {
@@ -207,14 +225,11 @@
 
 	System.set('beck/init/LoaderImpl', ToModule(LoaderImpl));
 
-	function getWhenImpl () {
-		Deferred = System.get('beck/init/Deferred');
-		return when = Deferred.when;
-	}
-
-	function getDeferredImpl () {
-		Deferred = System.get('beck/init/Deferred');
-		return new Deferred();
+	function getPromiseImpl () {
+		promise = System.get('beck/init/promise');
+		when = promise.when;
+		all = promise.all;
+		defer = promise.defer;
 	}
 
 	function getPipelineImpl () {
