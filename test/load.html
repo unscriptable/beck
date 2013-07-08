@@ -7,7 +7,14 @@
 
 <script>
 
-System.load('main');
+System.load('main',
+	function (main) {
+		console.log('this is the main module: ', main);
+	},
+	function (ex) {
+		console.error(ex);
+	}
+);
 
 </script>
 

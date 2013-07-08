@@ -29,6 +29,12 @@ path = {
 			: path;
 	},
 
+	ensureExt: function (path, ext) {
+		return path.lastIndexOf(ext) == path.length - ext.length
+			? path
+			: path + ext;
+	},
+
 	reduceLeadingDots: function (childId, baseId) {
 		var removeLevels, normId, levels, isRelative, diff;
 		// this algorithm is similar to dojo's compactPath, which

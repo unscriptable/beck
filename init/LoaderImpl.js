@@ -89,8 +89,8 @@
 			// process result according to spec
 			.then(withOptions(bind(this, 'processModule'), options))
 
-			// handle errors and early aborts
-			.then(null, function (reason) {
+			// callback or handle errors and early aborts
+			.then(callback, function (reason) {
 				if (reason instanceof Module) {
 					callback(loader.get(options.normalized));
 				}
@@ -106,8 +106,15 @@
 		"import": function () {},
 
 		get: function (name) {
-			// TODO: run factory
-			return this.cache[String(name)];
+			var module;
+			module = this.cache[String(name)];
+			// note: when all things in the cache are instanceof Module,
+			// this sniff will be safer
+			if (module && typeof module.execute == 'function') {
+				// run factory
+				this.cache[String(name)] = module = module.execute();
+			}
+			return module;
 		},
 
 		has: function (name) {
@@ -115,11 +122,11 @@
 		},
 
 		set: function (name, thing) {
-			cache[String(name)] = ToModule(thing);
+			this.cache[String(name)] = ToModule(thing);
 		},
 
 		"delete": function (name) {
-			delete cache[String(name)];
+			delete this.cache[String(name)];
 		},
 
 		processNormalized: function (result, options) {
@@ -150,8 +157,10 @@
 			if (!module instanceof Module) module = ToModule(module);
 			var dfd = this.get(options.normalized);
 			this.set(options.normalized, module);
+			// hackish way to ensure factory has run
+			module = this.get(options.normalized);
 			if (dfd instanceof Deferred) dfd.fulfill(module);
-			return this.get(options.normalized);
+			return module;
 		},
 
 		checkCache: function (normalized, options) {

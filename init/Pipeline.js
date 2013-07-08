@@ -6,6 +6,7 @@
 	var reduceLeadingDots = getReduceLeadingDotsImpl;
 	var joinPaths = getJoinPathsImpl;
 	var fetchText = getFetchTextImpl;
+	var ensureExt = getEnsureExtImpl;
 
 
 	/***** exports *****/
@@ -46,7 +47,7 @@
 
 	function resolve (normalized, options) {
 		var mctx = options.metadata;
-		mctx.url = joinPaths('./', normalized);
+		mctx.url = ensureExt(joinPaths('./', normalized), '.js');
 		return mctx.url;
 	}
 
@@ -80,15 +81,15 @@
 	}
 
 	function parseCjsm (source, options) {
-		var mctx, currQuote;
+		var mctx, currQuote, clean;
 
 		mctx = options.metadata;
 		mctx.deps = [];
 		mctx.depsMap = {};
 
 		// remove comments, then look for require() or quotes
-		source = source.replace(removeCommentsRx, '');
-		source.replace(findRValueRequiresRx, function (m, rq, id, qq) {
+		clean = source.replace(removeCommentsRx, '');
+		clean.replace(findRValueRequiresRx, function (m, rq, id, qq) {
 			// if we encounter a string in the source, don't look for require()
 			if (qq) {
 				currQuote = currQuote == qq ? void 0 : currQuote;
@@ -152,6 +153,11 @@
 	function getJoinPathsImpl () {
 		joinPaths = System.get('beck/init/path').joinPaths;
 		return joinPaths.apply(this, arguments);
+	}
+
+	function getEnsureExtImpl () {
+		ensureExt = System.get('beck/init/path').ensureExt;
+		return ensureExt.apply(this, arguments);
 	}
 
 	function getFetchTextImpl () {
