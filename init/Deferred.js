@@ -1,5 +1,5 @@
 /***** deferred *****/
-(function () {
+(function (global) {
 
 	/**
 	 * promise implementation adapted from https://github.com/briancavalier/avow
@@ -61,7 +61,7 @@
 			var bindings;
 
 			// Already fulfilled or rejected, ignore silently
-			if (!pendingHandlers)  return;
+			if (!pendingHandlers) return;
 
 			bindings = pendingHandlers;
 			pendingHandlers = undefined;
@@ -103,7 +103,7 @@
 		try {
 			if (typeof handler != 'function') return fallback(val);
 			result = handler(val);
-			if (isPromise(result)) result.then(fulfillNext, rejectNext);
+			if (isThenable(result)) result.then(fulfillNext, rejectNext);
 			else fulfillNext(result);
 		}
 		catch (e) {
@@ -116,14 +116,14 @@
 	}
 	Deferred.isDeferred = isDeferred;
 
-	function isPromise (it) {
+	function isThenable (it) {
 		return it && typeof it.then == 'function';
 	}
-	Deferred.isPromise = isPromise;
+	Deferred.isThenable = isThenable;
 
 	function when (it, callback, errback) {
 		var dfd;
-		if (!isPromise(it)) {
+		if (!isThenable(it)) {
 			dfd = new Deferred();
 			dfd.fulfill(it);
 			it = dfd.promise;
@@ -166,4 +166,4 @@
 
 	System.set('beck/init/Deferred', ToModule(Deferred));
 
-}());
+}(typeof global == 'object' ? global : this.window || this.global || {}));
