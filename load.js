@@ -172,7 +172,7 @@
 		var ids, count, id, LoaderImpl;
 
 		ids = [
-			'Deferred',
+			'promise',
 			'object',
 			'path',
 			'Pipeline',

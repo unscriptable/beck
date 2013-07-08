@@ -69,13 +69,13 @@
 			// The promise is no longer pending, so we can swap bindHandlers
 			// to something more direct
 			bindHandlers = function (onFulfilled, onRejected, vow) {
-				Deferred.nextTurn(function () {
+				nextTurn(function () {
 					apply(value, onFulfilled, onRejected, vow.fulfill, vow.reject);
 				});
 			};
 
 			// Call all the pending handlers
-			Deferred.nextTurn(function () {
+			nextTurn(function () {
 				var binding;
 				while (binding = bindings.pop()) binding(apply, value);
 			});
@@ -114,12 +114,10 @@
 	function isDeferred (it) {
 		return it && it instanceof Deferred;
 	}
-	Deferred.isDeferred = isDeferred;
 
 	function isThenable (it) {
 		return it && typeof it.then == 'function';
 	}
-	Deferred.isThenable = isThenable;
 
 	function when (it, callback, errback) {
 		var dfd;
@@ -130,7 +128,6 @@
 		}
 		return it.then(callback, errback);
 	}
-	Deferred.when = when;
 
 	function all (things) {
 		var howMany, dfd, results, thing;
@@ -152,18 +149,26 @@
 			};
 		}
 	}
-	Deferred.all = all;
 
 	// Use process.nextTick or setImmediate if available, fallback to setTimeout
-	Deferred.nextTurn = function () {
-		Deferred.nextTurn = typeof global.setImmediate == 'function'
+	var nextTurn = function () {
+		nextTurn = typeof global.setImmediate == 'function'
 			? global.setImmediate.bind(global)
 			: typeof process === 'object'
 				? process.nextTick
 				: function (task) { setTimeout(task, 0); };
-		return Deferred.nextTurn.apply(this, arguments);
+		return nextTurn.apply(this, arguments);
 	};
 
-	System.set('beck/init/Deferred', ToModule(Deferred));
+	var promise = {
+		defer: function () { return new Deferred(); },
+		isDeferred: isDeferred,
+		isThenable: isThenable,
+		when: when,
+		all: all,
+		nextTurn: nextTurn
+	};
+
+	System.set('beck/init/promise', ToModule(promise));
 
 }(typeof global == 'object' ? global : this.window || this.global || {}));
