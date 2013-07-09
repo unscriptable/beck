@@ -5,7 +5,6 @@
 beck.js is a toolkit for building ES6 Module Loader pipelines as well as an ES6
 Module Loader shim for legacy environments.
 
-
 The shim deviates from the spec in various ways.  It does this when the
 spec seems to do strange things or makes it really difficult to do
 common things -- things we've been doing with javascript modules since 2007.
@@ -40,3 +39,18 @@ Stay tuned for further updates.
 * How does beck wait for first require/request or config() call in node/ringo?
 	* ENV var?
 	* System.load/import
+
+## Differences from ModuleLoader/es6-module-loader / ES6 Spec
+
+* Do scripts get normalized or resolved?
+	* beck: maybe normalization isn't necessary, but resolving seems useful!
+	* ES6 spec: hard to follow code, but it seems similar
+	* ModuleLoader: they don't get normalized or resolved
+* Should all pipeline steps be async?
+	* beck: yes!
+	* ES6 spec: just fetch
+	* ModuleLoader: just fetch
+* Pass options to import, load, eval, and evalAsync
+	* beck: creates options internally
+	* ES6 reference impl: passes it in and uses it for referer only
+	* ModuleLoader: creates options internally
