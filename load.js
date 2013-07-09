@@ -86,17 +86,17 @@
 	}
 
 	Loader.prototype = {
-		// TODO: use Object.defineProperties or a shim for it
+		// TODO: use Object.defineProperties or a sham for it
 		global: global,
 		strict: true,
 		evalAsync: function (src, callback, errback) {
-			return getImpl(this).evalAsync(src, callback, errback);
+			getImpl(this).evalAsync(src, callback, errback);
 		},
 		"import": function (idOrArray, callback, errback) {
-			return getImpl(this)['import'](idOrArray, callback, errback);
+			getImpl(this)['import'](idOrArray, callback, errback);
 		},
 		load: function (idOrArray, callback, errback) {
-			return getImpl(this).load(idOrArray, callback, errback);
+			getImpl(this).load(idOrArray, callback, errback);
 		},
 		eval: function (src) { return getImpl(this).eval(src); },
 		get: function (name) { return getImpl(this).get(name); },

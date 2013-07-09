@@ -1,7 +1,7 @@
-// this is just a simple cjsm file
+// this is just a global script file
 
-module.exports = {};
+console.log('running inside run.js');
 
-console.log('running inside main.js');
-
-require('app/main').init();
+System.import('app/main', function (main) {
+	main.init();
+});

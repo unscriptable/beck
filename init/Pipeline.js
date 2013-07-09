@@ -1,4 +1,4 @@
-(function (global, cjsmEval) {
+(function (global, cjsmEval, globalEval) {
 
 
 	/***** imports *****/
@@ -66,7 +66,12 @@
 	}
 
 	function link (source, options) {
-		return parseCjsm(source, options);
+		if (options.type == 'script') {
+			return parseScript(source, options);
+		}
+		else {
+			return parseCjsm(source, options);
+		}
 	}
 
 	function isAbsUrl (url) {
@@ -78,6 +83,10 @@
 			+ '\n/*\n////@ sourceURL='
 			+ url.replace(/\s/g, '%20')
 			+ '\n*/\n';
+	}
+
+	function parseScript (source, options) {
+		return void globalEval(source);
 	}
 
 	function parseCjsm (source, options) {
@@ -167,5 +176,7 @@
 
 }(
 	typeof global != 'undefined' ? global : this.global || this.window,
-	function (require, exports, module, global) { eval(arguments[4]); }
+	// TODO: how do we inject these params and run in the context of `global`?
+	function (require, exports, module, global) { eval(arguments[4]); },
+	function () { (1, eval)(arguments[0]); }
 ));

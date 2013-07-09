@@ -35,6 +35,7 @@
 
 		evalAsync: function (source, callback, errback) {
 			if (!callback) callback = noop;
+			if (!errback) errback = fail;
 			try {
 				callback(this.eval(source));
 			}
@@ -43,22 +44,74 @@
 			}
 		},
 
-		load: function (idOrArray, callback, errback) {
-			var pipeline, options, dfd, loader, withOptions, promisify;
+		load: function (ids, callback, errback) {
+			if (!errback) errback = fail; // propagate by default
+			return this.fulfillAsType(ids, 'script')
+				.then(spread(callback), errback);
+		},
 
-			// ignoring arrays for now.... TODO: implement for array, too.
+		"import": function (ids, callback, errback) {
+			if (!errback) errback = fail; // propagate by default
+			return this.fulfillAsType(ids, 'module')
+				.then(spread(callback), errback);
+		},
+
+		get: function (name) {
+			var module;
+			module = this.cache[String(name)];
+			// note: when all things in the cache are instanceof Module,
+			// this sniff will be safer
+			if (module && typeof module.execute == 'function') {
+				// run factory
+				var deps = [];
+				for (var i = 0; i < module.imports.length; i++) {
+					deps[i] = this.get(module.imports[i]);
+				}
+				this.cache[String(name)] = module
+					= module.execute.apply(null, deps);
+			}
+			return module;
+		},
+
+		has: function (name) {
+			return String(name) in this.cache;
+		},
+
+		set: function (name, thing) {
+			this.cache[String(name)] = ToModule(thing);
+		},
+
+		"delete": function (name) {
+			delete this.cache[String(name)];
+		},
+
+		fulfillAsType: function (ids, type) {
+			var promises = [], i;
+
+			if (Object.prototype.toString.call(ids) != '[object Array]') {
+				ids = [ids];
+			}
+
+			for (i = 0; i < ids.length; i++) {
+				promises.push(this.runPipeline(ids[i], { type: type }));
+			}
+			return all(promises);
+		},
+
+		runPipeline: function (id, options) {
+			var pipeline, loader, withOptions, promisify;
+
 			// TODO: pre-prepare pipeline instead of building it from scratch each time
 				// withOptions
 				// promisify
 
 			pipeline = this.pipeline;
-			options = {};
 			loader = this;
 			withOptions = this.withOptions;
 			promisify = this.promisify;
 
 			// start pipeline with id as input
-			return when(idOrArray)
+			return when(id)
 
 			// normalize name
 			.then(pipeline.normalize)
@@ -91,48 +144,17 @@
 			.then(withOptions(bind(this, 'processModule'), options))
 
 			// callback or handle errors and early aborts
-			.then(callback, function (reason) {
+			.then(null, function (reason) {
 				if (reason instanceof Module) {
-					callback(loader.get(options.normalized));
+					return loader.get(options.normalized);
 				}
-				else if (reason instanceof defer) {
-					reason.promise.then(callback, errback);
+				else if (promise.isDeferred(reason)) {
+					return reason;
 				}
 				else {
-					errback(reason);
+					throw reason;
 				}
 			});
-		},
-
-		"import": function () {},
-
-		get: function (name) {
-			var module;
-			module = this.cache[String(name)];
-			// note: when all things in the cache are instanceof Module,
-			// this sniff will be safer
-			if (module && typeof module.execute == 'function') {
-				// run factory
-				var deps = [];
-				for (var i = 0; i < module.imports.length; i++) {
-					deps[i] = this.get(module.imports[i]);
-				}
-				this.cache[String(name)] = module
-					= module.execute.apply(null, deps);
-			}
-			return module;
-		},
-
-		has: function (name) {
-			return String(name) in this.cache;
-		},
-
-		set: function (name, thing) {
-			this.cache[String(name)] = ToModule(thing);
-		},
-
-		"delete": function (name) {
-			delete this.cache[String(name)];
 		},
 
 		processNormalized: function (result, options) {
@@ -160,7 +182,8 @@
 
 		processImports: function (result, options) {
 			var imports, count, promises;
-			imports = result.imports;
+			// scripts don't return a result
+			imports = result ? result.imports : [];
 			count = 0;
 			promises = [];
 			while (count < imports.length) {
@@ -177,7 +200,7 @@
 			this.set(options.normalized, module);
 			// hackish way to ensure factory has run
 			module = this.get(options.normalized);
-			if (dfd instanceof defer) dfd.fulfill(module);
+			if (promise.isDeferred(dfd)) dfd.fulfill(module);
 			return module;
 		},
 
@@ -252,7 +275,15 @@
 		}
 	}
 
+	function spread (func) {
+		return function (params) {
+			return func.apply(null, params);
+		};
+	}
+
 	function noop () {}
+
+	function fail (ex) { throw ex; }
 
 }(
 	typeof global == 'object' ? global : this.window || this.global || {},

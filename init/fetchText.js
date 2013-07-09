@@ -41,7 +41,7 @@
 		xhr.send(null);
 	}
 
-	function nodeFetch (url, callback, errback) {console.log('here', url);
+	function nodeFetch (url, callback, errback) {
 		fs.readFile(url, function (err) {
 			if (err) {
 				errback(err);
@@ -52,7 +52,7 @@
 		});
 	}
 
-	function cjsFetch (url, callback, errback) {console.log('here', url);
+	function cjsFetch (url, callback, errback) {
 		try {
 			callback(fs.read(url));
 		}
