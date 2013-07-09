@@ -1,15 +1,21 @@
 # beck.js
 
-# This is an experiment
+# This is a work in progress
 
-It's an experimental ES6 Module Loader shim.  This experiment deviates from the
-spec in various ways.  It does this when the spec seems to do strange things or
-makes it really difficult to do common things -- things we've been doing with
-javascript modules since 2007.
+beck.js is a toolkit for building ES6 Module Loader pipelines as well as an ES6
+Module Loader shim for legacy environments.
+
+
+The shim deviates from the spec in various ways.  It does this when the
+spec seems to do strange things or makes it really difficult to do
+common things -- things we've been doing with javascript modules since 2007.
 
 # This isn't ready for use, yet.
 
-This project isn't ready for you to try out, yet.  **IT DOES NOT WORK!**
+This project probably isn't ready for you to try out, yet.  It only
+understands CommonJS modules that have not been concatenated using some
+sort of transport format (browsers) and has onlly been rudimentally tested
+in modern browsers, node.js, and RingoJS.
 
 Stay tuned for further updates.
 
@@ -29,20 +35,8 @@ Stay tuned for further updates.
 		* System.load(module)
 * Config could also be supplied in an HTML data-* attr
 
-## Questions
+## Open questions
 
 * How does beck wait for first require/request or config() call in node/ringo?
 	* ENV var?
 	* System.load/import
-
-* What format should beck's local modules be in?
-	* ES6 eventually, of course. CommonJS for now.
-		* Loading of cjsm requires similar resources as json and es6
-		* Easy to test
-
-* What's the minimum set of functions/features in order to create and
-use a basic loader?  These will have to be stored in a pseudo-module format.
-	* Deferred
-	* path functions
-	* object functions
-	* other things needed to load beck's module format: cjsm
