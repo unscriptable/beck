@@ -1,3 +1,32 @@
 {
-	"name": "beck"
+	"name": "beck",
+	"version": "0.1.0",
+	"description": "An ES6 Module Loader pipeline toolkit and shim.",
+	"keywords": ["beck", "commonjs", "modules", "amd", "module", "es6"],
+	"licenses": [
+		{
+			"type": "MIT",
+			"url": "http://www.opensource.org/licenses/mit-license.php"
+		}
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/unscriptable/beck"
+	},
+	"maintainers": [
+		{
+			"name": "John Hann",
+			"web": "http://unscriptable.com"
+		}
+	],
+	"contributors": [
+		{
+			"name": "John Hann",
+			"web": "http://unscriptable.com"
+		},
+		{
+			"name": "Brian Cavalier",
+			"web": "http://hovercraftstudios.com"
+		}
+	]
 }

@@ -124,7 +124,7 @@
 				if (id in mctx.depsMap) {
 					dep = deps[mctx.depsMap[id]];
 				}
-				// TODO: figure out if/how to resolve relative require()s
+				// TODO: figure out if/how to resolve relative require()s of dynamic modules
 				else if (isAbsUrl(id) && System.has(id)) {
 					dep = System.get(id);
 				}
