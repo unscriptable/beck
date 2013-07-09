@@ -6,7 +6,15 @@
 
 	// determine the correct method upon first use
 	fetchText = function (url, callback, errback) {
-		fetchText = hasXhr() ? xhrFetch : hasFsModule() ? fsFetch : failFetch;
+		if (hasXhr()) {
+			fetchText = xhrFetch;
+		}
+		else if (hasFsModule()) {
+			fetchText = isNodeFs() ? nodeFetch : cjsFetch;
+		}
+		else {
+			fetchText = failFetch;
+		}
 		return fetchText(url, callback, errback);
 	};
 
@@ -33,7 +41,7 @@
 		xhr.send(null);
 	}
 
-	function fsFetch (url, callback, errback) {
+	function nodeFetch (url, callback, errback) {console.log('here', url);
 		fs.readFile(url, function (err) {
 			if (err) {
 				errback(err);
@@ -42,6 +50,15 @@
 				callback.apply(this, slice.call(arguments, 1));
 			}
 		});
+	}
+
+	function cjsFetch (url, callback, errback) {console.log('here', url);
+		try {
+			callback(fs.read(url));
+		}
+		catch (ex) {
+			errback(ex);
+		}
 	}
 
 	function failFetch () {
@@ -60,6 +77,10 @@
 			}
 			catch (ex) { }
 		}
+	}
+
+	function isNodeFs () {
+		return typeof fs.readFile == 'function' && fs.readFile.length > 1;
 	}
 
 }(typeof require == 'function' && require));
