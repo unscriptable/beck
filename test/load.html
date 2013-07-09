@@ -7,9 +7,10 @@
 
 <script>
 
-System.load('run',
+System.load(['run'],
+	// TODO: don't provide anything to callback for System.load()
 	function (run) {
-		console.log('this is the main module: ', run);
+		console.log('this is the run module: ', run);
 	},
 	function (ex) {
 		console.error('oops!', ex);

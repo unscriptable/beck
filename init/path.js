@@ -77,6 +77,6 @@ path = {
 	}
 };
 
-System.set('beck/init/path', ToModule(path));
+System.set('beck/init/path', new Module(path));
 
 }());

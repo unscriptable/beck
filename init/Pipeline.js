@@ -21,8 +21,7 @@
 		};
 	}
 
-	System.set('beck/init/Pipeline', ToModule(Pipeline));
-
+	System.set('beck/init/Pipeline', new Module(Pipeline));
 
 	var removeCommentsRx, findRValueRequiresRx, absUrlRx;
 
@@ -176,7 +175,6 @@
 
 }(
 	typeof global != 'undefined' ? global : this.global || this.window,
-	// TODO: how do we inject these params and run in the context of `global`?
 	function (require, exports, module, global) { eval(arguments[4]); },
 	function () { (1, eval)(arguments[0]); }
 ));

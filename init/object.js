@@ -5,7 +5,7 @@
 		extend: Object.extend || extend
 	};
 
-	System.set('beck/init/object', ToModule(object));
+	System.set('beck/init/object', new Module(object));
 
 	function create (base) {
 		Begetter.prototype = base || null;

@@ -169,6 +169,6 @@
 		nextTurn: nextTurn
 	};
 
-	System.set('beck/init/promise', ToModule(promise));
+	System.set('beck/init/promise', new Module(promise));
 
 }(typeof global == 'object' ? global : this.window || this.global || {}));

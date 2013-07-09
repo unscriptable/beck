@@ -78,7 +78,7 @@
 		},
 
 		set: function (name, thing) {
-			this.cache[String(name)] = ToModule(thing);
+			this.cache[String(name)] = new Module(thing);
 		},
 
 		"delete": function (name) {
@@ -206,7 +206,7 @@
 
 		processModule: function (module, options) {
 			// TODO: handle when result is undefined? (per spec)
-			if (!module instanceof Module) module = ToModule(module);
+			if (!module instanceof Module) module = new Module(module);
 			var dfd = this.get(options.normalized);
 			this.set(options.normalized, module);
 			// hackish way to ensure factory has run
@@ -257,7 +257,7 @@
 
 	};
 
-	System.set('beck/init/LoaderImpl', ToModule(LoaderImpl));
+	System.set('beck/init/LoaderImpl', new Module(LoaderImpl));
 
 	function getPromiseImpl () {
 		promise = System.get('beck/init/promise');
