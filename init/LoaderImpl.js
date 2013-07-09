@@ -44,15 +44,15 @@
 			}
 		},
 
-		load: function (ids, callback, errback) {
+		load: function (ids, callback, errback, options) {
 			if (!errback) errback = fail; // propagate by default
-			return this.fulfillAsType(ids, 'script')
+			return this.fulfillAsType(ids, 'script', options)
 				.then(spread(callback), errback);
 		},
 
-		"import": function (ids, callback, errback) {
+		"import": function (ids, callback, errback, options) {
 			if (!errback) errback = fail; // propagate by default
-			return this.fulfillAsType(ids, 'module')
+			return this.fulfillAsType(ids, 'module', options)
 				.then(spread(callback), errback);
 		},
 
@@ -85,15 +85,25 @@
 			delete this.cache[String(name)];
 		},
 
-		fulfillAsType: function (ids, type) {
-			var promises = [], i;
+		fulfillAsType: function (ids, type, options) {
+			var referer, pipelineOptions, promises, i;
 
 			if (Object.prototype.toString.call(ids) != '[object Array]') {
 				ids = [ids];
 			}
 
+			referer = { type: type };
+
+			if (options) {
+				referer.name = options.module || null;
+				referer.address = options.address || null;
+			}
+			pipelineOptions = { type: type, referer: referer };
+
+			promises = [];
+
 			for (i = 0; i < ids.length; i++) {
-				promises.push(this.runPipeline(ids[i], { type: type }));
+				promises.push(this.runPipeline(ids[i], pipelineOptions));
 			}
 			return all(promises);
 		},
@@ -101,6 +111,7 @@
 		runPipeline: function (id, options) {
 			var pipeline, loader, withOptions, promisify;
 
+			// TODO: conflate callbacks onto a single next-turn
 			// TODO: pre-prepare pipeline instead of building it from scratch each time
 				// withOptions
 				// promisify
