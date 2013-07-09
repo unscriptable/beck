@@ -156,6 +156,8 @@
 
 }(
 	typeof global != 'undefined' ? global : this.global || this.window,
-	function (require, exports, module, global) { eval(arguments[4]); },
+	// `new Function()` prevents obfuscators from obfuscating commonjs vars
+	new Function('require', 'exports', 'module', 'global', 'eval(arguments[4]);'),
+//	function (require, exports, module, global) { eval(arguments[4]); },
 	function () { (1, eval)(arguments[0]); }
 ));
