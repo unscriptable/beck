@@ -1,6 +1,8 @@
 (function (scopedRequire) {
 
-	var fs, fetchText;
+	var slice, fetchText, fs;
+
+	slice = Array.prototype.slice;
 
 	// determine the correct method upon first use
 	fetchText = function (url, callback, errback) {
@@ -51,9 +53,7 @@
 	}
 
 	function hasFsModule () {
-		var slice;
 		if (scopedRequire) {
-			slice = Array.prototype.slice;
 			try {
 				fs = scopedRequire('fs');
 				return true;

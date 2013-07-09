@@ -292,7 +292,7 @@
 
 	// node, ringojs, etc.
 	if (typeof module != 'undefined' && typeof require == 'function') {
-		baseUrl = stripFilePart(module.uri) + '../';
+		baseUrl = '../';
 		loadScript = createCallbackLoader(require);
 		// in node, module.id is bogus, don't try to use it.
 		getDefinedModuleId = noop;
@@ -313,7 +313,7 @@
 
 	function createCallbackLoader (loadFunc) {
 		return function (options, cb, eb) {
-			var url = joinPath(baseUrl, options.url);
+			var url = options.url;
 			try { cb(loadFunc(url)); } catch (ex) { eb(ex); }
 		};
 	}
