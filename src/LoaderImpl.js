@@ -1,13 +1,14 @@
 (function (global, globalEval) {
 
-	var promise, when, defer, all, Pipeline, extend;
-
-	Pipeline = getPipelineImpl;
-	extend = getExtendImpl;
+	var promise = System.get('beck/promise');
+	var when = promise.when;
+	var defer = promise.defer;
+	var all = promise.all;
+	var Pipeline = System.get('beck/Pipeline');
+	var extend = System.get('beck/object').extend;
 
 	function LoaderImpl (parentImpl, options) {
 		var pipeline;
-		getPromiseImpl();
 		if (!options) options = {};
 		// inherit from parent
 		this.cache = parentImpl ? extend(parentImpl.cache) : {};
@@ -257,24 +258,7 @@
 
 	};
 
-	System.set('beck/init/LoaderImpl', new Module(LoaderImpl));
-
-	function getPromiseImpl () {
-		promise = System.get('beck/init/promise');
-		when = promise.when;
-		all = promise.all;
-		defer = promise.defer;
-	}
-
-	function getPipelineImpl () {
-		Pipeline = System.get('beck/init/Pipeline');
-		return new Pipeline();
-	}
-
-	function getExtendImpl () {
-		extend = System.get('beck/init/object').extend;
-		return extend.apply(this, arguments);
-	}
+	System.set('beck/LoaderImpl', new Module(LoaderImpl));
 
 	function toArray (obj) {
 		return Array.prototype.slice.apply(obj);

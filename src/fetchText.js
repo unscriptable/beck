@@ -18,7 +18,7 @@
 		return fetchText(url, callback, errback);
 	};
 
-	System.set('beck/init/fetchText', new Module(fetch));
+	System.set('beck/fetchText', new Module(fetch));
 
 	function fetch (url, callback, errback) {
 		return fetchText(url, callback, errback);

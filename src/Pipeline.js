@@ -3,10 +3,11 @@
 
 	/***** imports *****/
 
-	var reduceLeadingDots = getReduceLeadingDotsImpl;
-	var joinPaths = getJoinPathsImpl;
-	var fetchText = getFetchTextImpl;
-	var ensureExt = getEnsureExtImpl;
+	var path = System.get('beck/path');
+	var reduceLeadingDots = path.reduceLeadingDots;
+	var joinPaths = path.joinPaths;
+	var ensureExt = path.ensureExt;
+	var fetchText = System.get('beck/fetchText');
 
 
 	/***** exports *****/
@@ -21,7 +22,7 @@
 		};
 	}
 
-	System.set('beck/init/Pipeline', new Module(Pipeline));
+	System.set('beck/Pipeline', new Module(Pipeline));
 
 	var removeCommentsRx, findRValueRequiresRx, absUrlRx;
 
@@ -151,26 +152,6 @@
 
 			return module.exports;
 		};
-	}
-
-	function getReduceLeadingDotsImpl () {
-		reduceLeadingDots = System.get('beck/init/path').reduceLeadingDots;
-		return reduceLeadingDots.apply(this, arguments);
-	}
-
-	function getJoinPathsImpl () {
-		joinPaths = System.get('beck/init/path').joinPaths;
-		return joinPaths.apply(this, arguments);
-	}
-
-	function getEnsureExtImpl () {
-		ensureExt = System.get('beck/init/path').ensureExt;
-		return ensureExt.apply(this, arguments);
-	}
-
-	function getFetchTextImpl () {
-		fetchText = System.get('beck/init/fetchText');
-		return fetchText.apply(this, arguments);
 	}
 
 }(

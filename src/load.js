@@ -180,9 +180,9 @@
 		];
 		count = ids.length;
 
-		System.load('beck/init/LoaderImpl', after(setLoader, countdown));
+		System.load('beck/LoaderImpl', after(setLoader, countdown));
 		while (id = ids.shift()) {
-			System.load('beck/init/' + id, countdown);
+			System.load('beck/' + id, countdown);
 		}
 
 		function countdown () {
