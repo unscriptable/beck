@@ -44,13 +44,13 @@ Stay tuned for further updates.
 
 * Do scripts get normalized or resolved?
 	* beck: maybe normalization isn't necessary, but resolving seems useful!
-	* ES6 spec: hard to follow code, but it seems similar
 	* ModuleLoader: they don't get normalized or resolved
+	* ES6 spec: hard to follow code, but it seems similar
 * Should all pipeline steps be async?
 	* beck: yes!
-	* ES6 spec: just fetch
 	* ModuleLoader: just fetch
+	* ES6 spec: just fetch
 * Pass options to import, load, eval, and evalAsync
 	* beck: creates options internally
-	* ES6 reference impl: passes it in and uses it for referer only
 	* ModuleLoader: creates options internally
+	* ES6 reference impl: passes it in and uses it for referer only
