@@ -11,13 +11,11 @@
 	function Loader (parent, options) {
 		var impl, vo;
 		impl = new LoaderImpl(parent, options);
+		implSetter(this);
 		setImpl(this, impl);
 	}
 
 	Loader.prototype = {
-		// TODO: use Object.defineProperties or a sham for it
-		global: global,
-		strict: true,
 		evalAsync: function (src, callback, errback) {
 			getImpl(this).evalAsync(src, callback, errback);
 		},
@@ -34,19 +32,48 @@
 		"delete": function (name) { return getImpl(this)['delete'](name); }
 	};
 
-	var implKey = {};
+	var defineProp = Object.defineProperty || function (obj, prop, options) {
+		obj[prop] = options.value;
+	};
 
-	function setImpl (loader, impl) {
-		var vo;
-		vo = loader.valueOf;
-		loader.valueOf = function () {
-			if (arguments[0] == implKey) return impl;
-			else return vo.apply(loader);
-		};
+	defineProp(Loader.prototype, 'global', {
+		value: global,
+		configurable: false,
+		writable: false
+	});
+	defineProp(Loader.prototype, 'strict', {
+		value: true,
+		configurable: false,
+		writable: false
+	});
+
+	var secretKey = {};
+	var secretFunc = Object.defineProperty ? 'getImpl' : 'valueOf';
+
+	function implSetter (loader) {
+		var orig, impl;
+		orig = loader[secretFunc];
+		defineProp(loader, secretFunc, {
+			value: secret,
+			enumerable: false,
+			configurable: false,
+			writable: false
+		});
+		function secret () {
+			if (arguments[0] == secretKey) {
+				if (arguments.length > 1 ) impl = arguments[1];
+				return impl;
+			}
+			if (orig) return orig.apply(this, arguments);
+		}
 	}
 
 	function getImpl (loader) {
-		return loader.valueOf(implKey);
+		return loader[secretFunc](secretKey);
+	}
+
+	function setImpl (loader, impl) {
+		loader[secretFunc](secretKey, impl);
 	}
 
 	// temporary implementation while the rest of this file is executed
@@ -83,7 +110,6 @@
 	if (typeof global.Module == 'undefined') {
 		// TODO: implement the Module constructor
 		global.Module = function Module (obj) { return obj; };
-		global.ToModule = function ToModule (obj) { return new Module(obj); };
 	}
 
 }(
