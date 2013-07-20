@@ -1,3 +1,4 @@
+/** @module beck/LoaderImpl */
 (function (global, globalEval) {
 
 	var promise = System.get('beck/promise');
@@ -7,6 +8,12 @@
 	var Pipeline = System.get('beck/Pipeline');
 	var extend = System.get('beck/object').extend;
 
+	/**
+	 * The actual loader implementation used by the Loader shim.
+	 * @param {LoaderImpl} parentImpl
+	 * @param {Object} options
+	 * @constructor
+	 */
 	function LoaderImpl (parentImpl, options) {
 		var pipeline;
 		if (!options) options = {};

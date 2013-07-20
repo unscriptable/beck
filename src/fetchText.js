@@ -1,3 +1,4 @@
+/** @module beck/fetchText */
 (function (scopedRequire) {
 
 	var slice, fetchText, fs;
@@ -20,6 +21,15 @@
 
 	System.set('beck/fetchText', new Module(fetch));
 
+	/**
+	 * Loads the plain text of the file at the url provided and passes it
+	 * to the callback function.  If an error occurs, the errback function
+	 * is called with an exception.
+	 * @param {String} url
+	 * @param {Function} callback
+	 * @param {Function} errback
+	 * @return {String}
+	 */
 	function fetch (url, callback, errback) {
 		return fetchText(url, callback, errback);
 	}

@@ -1,9 +1,14 @@
-/***** deferred *****/
+/** @module beck/promise */
 (function (global) {
 
 	/**
-	 * promise implementation adapted from https://github.com/briancavalier/avow
+	 * Returns a new deferred.
 	 * @return {Deferred}
+	 */
+	function defer () { return new Deferred(); }
+
+	/**
+	 * Promise implementation adapted from https://github.com/briancavalier/avow
 	 * @constructor
 	 */
 	function Deferred () {
@@ -111,14 +116,32 @@
 		}
 	}
 
+	/**
+	 * Returns true only if the parameter is a Deferred created by this module.
+	 * @param {*} it
+	 * @return {Boolean}
+	 */
 	function isDeferred (it) {
 		return it && it instanceof Deferred;
 	}
 
+	/**
+	 * Returns true if the parameter is an object with a function named "then".
+	 * @param {*} it
+	 * @return {Boolean}
+	 */
 	function isThenable (it) {
 		return it && typeof it.then == 'function';
 	}
 
+	/**
+	 * Coerces unknown values to promises and calls an optional callback or
+	 * errback when the promise fulfills or rejects.
+	 * @param {*} it
+	 * @param {Function} [callback]
+	 * @param {Function} [errback]
+	 * @return {promise}
+	 */
 	function when (it, callback, errback) {
 		var dfd;
 		if (!isThenable(it)) {
@@ -129,6 +152,13 @@
 		return it.then(callback, errback);
 	}
 
+	/**
+	 * Returns a promise that fulfills with the results of many promises as
+	 * an array of values.  The things parameter can be a mixed array of
+	 * promises and values.
+	 * @param {*} things
+	 * @return {Object}
+	 */
 	function all (things) {
 		var howMany, dfd, results, thing;
 
@@ -150,7 +180,15 @@
 		}
 	}
 
-	// Use process.nextTick or setImmediate if available, fallback to setTimeout
+	/**
+	 * Executes a function, task, as soon as possible, but not in the current
+	 * call stack.  (This statement is probably not technically accurate, but
+	 * is close enough to convey meaning, I hope.)
+	 * Uses process.nextTick or setImmediate if available, falls back to
+	 * setTimeout.
+	 * @function
+	 * @param {Function} task
+	 */
 	var nextTurn = function () {
 		nextTurn = typeof global.setImmediate == 'function'
 			? global.setImmediate.bind(global)
@@ -161,7 +199,8 @@
 	};
 
 	var promise = {
-		defer: function () { return new Deferred(); },
+		Deferred: Deferred,
+		defer: defer,
 		isDeferred: isDeferred,
 		isThenable: isThenable,
 		when: when,

@@ -1,3 +1,4 @@
+/** @module beck/Pipeline */
 (function (global, cjsmEval, globalEval) {
 
 
@@ -12,6 +13,12 @@
 
 	/***** exports *****/
 
+	/**
+	 * Constructs a pipeline that can be used by an ES6 Loader to load CommonJS
+	 * modules.  This pipeline may be extended and customized, as needed, to
+	 * load other types of modules.
+	 * @constructor
+	 */
 	function Pipeline () {
 		return {
 			normalize: normalize,

@@ -1,3 +1,4 @@
+/** @module beck/init */
 (function (global) {
 
 	/**
