@@ -56,7 +56,7 @@
 
 		// Arrange for a handler to be called on the eventual value or reason
 		function then (onFulfilled, onRejected) {
-			var dfd = new Deferred();
+			var dfd = defer();
 			bindHandlers(onFulfilled, onRejected, dfd);
 			return dfd.promise;
 		}

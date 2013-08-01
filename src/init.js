@@ -4,7 +4,7 @@
 	/**
 	 * Shim ES6 Loader.
 	 * @constructor
-	 * @param options
+	 * @param parent
 	 * @param options
 	 * @private
 	 */
@@ -91,7 +91,7 @@
 					// create the actual impl, transferring cache
 					var impl = new LoaderImpl(temp);
 					// replace the impl in System
-					setImpl(System, impl);
+					setImpl(global.System, impl);
 				}
 			}
 		};
